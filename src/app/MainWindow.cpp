@@ -12,5 +12,5 @@ MainWindow::MainWindow(QWidget* parent)
     split->addWidget(preview_);
     split->setSizes({550, 550});
     setCentralWidget(split);
-    setWindowTitle("mdedit");
+    setWindowTitle("marky");
 }
