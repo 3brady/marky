@@ -4,12 +4,13 @@
 class QPlainTextEdit;
 class QTextBrowser;
 
-class MainWindow : public QMainWindow {
+class MainWindow : public QMainWindow
+{
     Q_OBJECT
 public:
-    explicit MainWindow(QWidget* parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
 
 private:
-    QPlainTextEdit* editor_;
-    QTextBrowser* preview_;
+    QPlainTextEdit *editor_;
+    QTextBrowser *preview_;
 };

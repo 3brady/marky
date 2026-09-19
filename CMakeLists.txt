@@ -18,6 +18,7 @@ add_executable(marky
     src/main.cpp
     src/app/MainWindow.h
     src/app/MainWindow.cpp
+    src/markdown/AST.h
     src/markdown/Parser.h
     src/markdown/Parser.cpp
 )
