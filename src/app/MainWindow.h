@@ -3,14 +3,21 @@
 
 class QPlainTextEdit;
 class QTextBrowser;
+class QTreeView;
+class QFileSystemModel;
+class QModelIndex;
 
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(const QString& rootDir, QWidget* parent = nullptr);
+
+private slots:
+    void onFileClicked(const QModelIndex& index);
 
 private:
-    QPlainTextEdit *editor_;
-    QTextBrowser *preview_;
+    QTreeView* files_;
+    QFileSystemModel* model_;
+    QPlainTextEdit* editor_;
+    QTextBrowser* preview_;
 };
