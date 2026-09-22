@@ -192,6 +192,64 @@ namespace md
         return 0;
     }
 
+    static NodeType toNodeType(MD_SPANTYPE t)
+    {
+        switch (t)
+        {
+        case MD_SPAN_EM:
+            return NodeType::Emphasis;
+        case MD_SPAN_STRONG:
+            return NodeType::Strong;
+        case MD_SPAN_DEL:
+            return NodeType::StrikeThrough;
+        case MD_SPAN_CODE:
+            return NodeType::InlineCode;
+        default:
+            return NodeType::Text; // links, images...etc ,  handled later
+        }
+    }
+
+    static int onEnterSpanNode(MD_SPANTYPE type, void *, void *user)
+    {
+        auto *s = static_cast<ASTState *>(user);
+
+        auto node = std::make_unique<Node>(toNodeType(type));
+        Node *raw = node.get();
+        s->stack.back()->children.push_back(std::move(node));
+        s->stack.push_back(raw);
+        return 0;
+    }
+
+    static int onLeaveSpanNode(MD_SPANTYPE, void *, void *user)
+    {
+        static_cast<ASTState *>(user)->stack.pop_back();
+        return 0;
+    }
+
+    static int onTextNode(MD_TEXTTYPE type, const MD_CHAR *str, MD_SIZE size, void *user)
+    {
+        auto *s = static_cast<ASTState *>(user);
+
+        auto node = std::make_unique<Node>(NodeType::Text);
+        switch (type)
+        {
+        case MD_TEXT_BR:
+            node->type = NodeType::LineBreak;
+            break;
+        case MD_TEXT_SOFTBR:
+            node->text = " ";
+            break;
+        case MD_TEXT_NULLCHAR:
+            node->text = "\xEF\xBF\xBD";
+            break; // U+FFFD
+        default:
+            node->text.assign(str, size);
+            break;
+        }
+        s->stack.back()->children.push_back(std::move(node));
+        return 0;
+    }
+
     std::unique_ptr<Node> parse(std::string_view text)
     {
 
@@ -202,9 +260,9 @@ namespace md
         parser.flags = MD_DIALECT_GITHUB;
         parser.enter_block = onEnterNode;
         parser.leave_block = onLeaveNode;
-        parser.enter_span = onEnterSpan;
-        parser.leave_span = onLeaveSpan;
-        parser.text = onText;
+        parser.enter_span = onEnterSpanNode;
+        parser.leave_span = onLeaveSpanNode;
+        parser.text = onTextNode;
 
         if (md_parse(text.data(), (MD_SIZE)text.size(), &parser, &state) != 0)
         {
