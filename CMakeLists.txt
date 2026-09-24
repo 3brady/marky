@@ -21,6 +21,8 @@ add_executable(marky
     src/markdown/AST.h
     src/markdown/Parser.h
     src/markdown/Parser.cpp
+    src/render/Renderer.h
+    src/render/Renderer.cpp
 )
 target_include_directories(marky PRIVATE src libs/md4c/md4c)
 target_link_libraries(marky PRIVATE Qt6::Widgets md4c)
