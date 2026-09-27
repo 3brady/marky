@@ -204,17 +204,32 @@ namespace md
             return NodeType::StrikeThrough;
         case MD_SPAN_CODE:
             return NodeType::InlineCode;
+        case MD_SPAN_A:
+            return NodeType::Link;
         default:
-            return NodeType::Text; // links, images...etc ,  handled later
+            return NodeType::Text;
         }
     }
 
-    static int onEnterSpanNode(MD_SPANTYPE type, void *, void *user)
+    static std::string attr(const MD_ATTRIBUTE &a)
+    {
+        return a.text ? std::string(a.text, a.size) : std::string();
+    }
+
+    static int onEnterSpanNode(MD_SPANTYPE type, void *detail, void *user)
     {
         auto *s = static_cast<ASTState *>(user);
 
         auto node = std::make_unique<Node>(toNodeType(type));
         Node *raw = node.get();
+
+        if (type == MD_SPAN_A)
+        {
+            auto *d = static_cast<const MD_SPAN_A_DETAIL *>(detail);
+            node->url = attr(d->href);
+            node->title = attr(d->title);
+        }
+
         s->stack.back()->children.push_back(std::move(node));
         s->stack.push_back(raw);
         return 0;

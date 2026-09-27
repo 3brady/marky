@@ -29,7 +29,8 @@ namespace md
         Emphasis,
         Strong,
         StrikeThrough,
-        InlineCode
+        InlineCode,
+        Link
     };
 
     inline const char *nodeName(NodeType t)
@@ -80,6 +81,8 @@ namespace md
             return "StrikeThrough";
         case NodeType::InlineCode:
             return "InlineCode";
+        case NodeType::Link:
+            return "Link";
         }
         return "?";
     }
@@ -89,6 +92,8 @@ namespace md
         NodeType type;
         int level = 0;
         std::string text;
+        std::string url;
+        std::string title;
         std::vector<std::unique_ptr<Node>> children;
 
         explicit Node(NodeType t) : type(t) {}
