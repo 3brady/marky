@@ -206,6 +206,8 @@ namespace md
             return NodeType::InlineCode;
         case MD_SPAN_A:
             return NodeType::Link;
+        case MD_SPAN_IMG:
+            return NodeType::Image;
         default:
             return NodeType::Text;
         }
@@ -227,6 +229,13 @@ namespace md
         {
             auto *d = static_cast<const MD_SPAN_A_DETAIL *>(detail);
             node->url = attr(d->href);
+            node->title = attr(d->title);
+        }
+
+        if (type == MD_SPAN_IMG)
+        {
+            auto *d = static_cast<const MD_SPAN_IMG_DETAIL *>(detail);
+            node->url = attr(d->src);
             node->title = attr(d->title);
         }
 

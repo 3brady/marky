@@ -171,7 +171,9 @@ void MainWindow::refreshPreview()
     if (!root)
         return;
 
-    auto doc = render::toDocument(*root);
+    const QString baseDir = currentPath_.isEmpty() ? rootDir_ : QFileInfo(currentPath_).absolutePath();
+    const int maxW = qMax(200, preview_->viewport()->width() - 40);
+    auto doc = render::toDocument(*root, baseDir, maxW);
 
     preview_->setDocument(doc.get());
     doc_ = std::move(doc);

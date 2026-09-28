@@ -8,6 +8,10 @@
 #include <QTextCursor>
 #include <QTextList>
 #include <QTextTable>
+#include <QDir>
+#include <QImage>
+#include <QTextFormat>
+#include <QUrl>
 #include <algorithm>
 #include <vector>
 
@@ -25,6 +29,9 @@ namespace render
             bool reuse = true; // true = the current block is empty and can be reused
             int listDepth = 0;
             int quoteDepth = 0;
+            QTextDocument *doc = nullptr;
+            QString baseDir;
+            int maxImageWidth = 700;
         };
 
         QString str(const std::string &s)
@@ -81,6 +88,49 @@ namespace render
             }
         }
 
+        QString plainText(const Node &n)
+        {
+            QString s = str(n.text);
+            for (const auto &ch : n.children)
+                s += plainText(*ch);
+            return s;
+        }
+
+        void insertImage(Ctx &c, const Node &n, const QTextCharFormat &fmt)
+        {
+            const QString src = str(n.url);
+            QString alt = plainText(n);
+            if (alt.isEmpty())
+                alt = src;
+
+            const bool remote = src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:");
+            QImage img;
+            QString path;
+            if (!remote)
+            {
+                path = QDir(c.baseDir).absoluteFilePath(QUrl::fromPercentEncoding(src.toUtf8()));
+                img.load(path);
+            }
+            if (img.isNull())
+            {
+                c.cur.insertText("[" + alt + "]", fmt);
+                return;
+            }
+
+            const QUrl key = QUrl::fromLocalFile(path);
+            c.doc->addResource(QTextDocument::ImageResource, key, img);
+
+            QTextImageFormat f;
+            f.merge(fmt);
+            f.setName(key.toString());
+            const int w = qMin(img.width(), c.maxImageWidth);
+            f.setWidth(w);
+            f.setHeight(img.height() * double(w) / img.width());
+            if (!n.title.empty())
+                f.setToolTip(str(n.title));
+            c.cur.insertImage(f);
+        }
+
         void inlines(Ctx &c, const Node &n, QTextCharFormat fmt)
         {
             switch (n.type)
@@ -105,13 +155,16 @@ namespace render
                 fmt.setBackground(QColor(0, 0, 0, 25));
                 break;
             case NodeType::Link:
-                fmt.setAnchor(true); 
+                fmt.setAnchor(true);
                 fmt.setAnchorHref(str(n.url));
                 fmt.setForeground(QGuiApplication::palette().color(QPalette::Link));
                 fmt.setFontUnderline(true);
                 if (!n.title.empty())
                     fmt.setToolTip(str(n.title));
                 break;
+            case NodeType::Image:
+                insertImage(c, n, fmt);
+                return;
             default:
                 break;
             }
@@ -214,7 +267,7 @@ namespace render
                         tcf.setBackground(QColor(128, 128, 128, 40));
                         cell.setFormat(tcf);
                     }
-                    Ctx cc;
+                    Ctx cc = c;
                     cc.cur = cell.firstCursorPosition();
                     for (const auto &ch : cells[col]->children)
                         inlines(cc, *ch, cf);
@@ -316,11 +369,14 @@ namespace render
 
     }
 
-    std::unique_ptr<QTextDocument> toDocument(const md::Node &root)
+    std::unique_ptr<QTextDocument> toDocument(const md::Node &root, const QString &baseDir, int maxImageWidth)
     {
         auto doc = std::make_unique<QTextDocument>();
         Ctx c;
         c.cur = QTextCursor(doc.get());
+        c.doc = doc.get();
+        c.baseDir = baseDir;
+        c.maxImageWidth = maxImageWidth;
         block(c, root);
         return doc;
     }

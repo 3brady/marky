@@ -30,7 +30,8 @@ namespace md
         Strong,
         StrikeThrough,
         InlineCode,
-        Link
+        Link,
+        Image
     };
 
     inline const char *nodeName(NodeType t)
@@ -83,6 +84,8 @@ namespace md
             return "InlineCode";
         case NodeType::Link:
             return "Link";
+        case NodeType::Image:
+            return "Image";
         }
         return "?";
     }
