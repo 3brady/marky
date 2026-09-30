@@ -171,6 +171,13 @@ namespace md
             node->level = static_cast<const MD_BLOCK_H_DETAIL *>(detail)->level;
         }
 
+        if (type == MD_BLOCK_LI){
+            auto* d = static_cast<const MD_BLOCK_LI_DETAIL*>(detail);
+            if (d->is_task){
+                node->task = (d->task_mark == ' ') ? 1 : 2;
+            }
+        }
+
         Node *raw = node.get();
 
         if (s->stack.empty())
@@ -266,6 +273,10 @@ namespace md
         case MD_TEXT_NULLCHAR:
             node->text = "\xEF\xBF\xBD";
             break; // U+FFFD
+        case MD_TEXT_ENTITY:
+            node->type = NodeType::Entity;
+            node->text.assign(str, size);     // raw, e.g. "&copy;"
+            break;
         default:
             node->text.assign(str, size);
             break;

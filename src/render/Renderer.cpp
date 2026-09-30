@@ -12,6 +12,7 @@
 #include <QImage>
 #include <QTextFormat>
 #include <QUrl>
+#include <QTextDocumentFragment>
 #include <algorithm>
 #include <vector>
 
@@ -165,6 +166,13 @@ namespace render
             case NodeType::Image:
                 insertImage(c, n, fmt);
                 return;
+            case NodeType::Entity:
+            {
+                const QString raw = str(n.text);
+                const QString decoded = QTextDocumentFragment::fromHtml(raw).toPlainText();
+                c.cur.insertText(decoded.isEmpty() ? raw : decoded, fmt);
+                return;
+            }
             default:
                 break;
             }
@@ -191,6 +199,17 @@ namespace render
                 QTextBlockFormat bf = baseBlock(c);
                 bf.setTopMargin(0);
                 bf.setBottomMargin(2);
+                if (item->task)
+                {
+                    if (item->task == 2)
+                    {
+                        bf.setMarker(QTextBlockFormat::MarkerType::Checked);
+                    }
+                    else
+                    {
+                        bf.setMarker(QTextBlockFormat::MarkerType::Unchecked);
+                    }
+                }
                 const QTextCharFormat cf = baseChar(c);
 
                 startBlock(c, bf, cf);

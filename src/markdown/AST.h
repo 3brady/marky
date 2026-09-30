@@ -31,7 +31,8 @@ namespace md
         StrikeThrough,
         InlineCode,
         Link,
-        Image
+        Image,
+        Entity
     };
 
     inline const char *nodeName(NodeType t)
@@ -86,6 +87,8 @@ namespace md
             return "Link";
         case NodeType::Image:
             return "Image";
+        case NodeType::Entity:
+            return "Entity";
         }
         return "?";
     }
@@ -94,6 +97,7 @@ namespace md
     {
         NodeType type;
         int level = 0;
+        int task = 0; // 0 = not a task , 1 = unchecked   , 2  =
         std::string text;
         std::string url;
         std::string title;
