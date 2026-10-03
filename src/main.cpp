@@ -6,24 +6,6 @@
 #include "markdown/AST.h"
 #include "markdown/Parser.h"
 
-static void dump(const md::Node &n, int depth)
-{
-    std::printf("%*s", depth * 2, "");
-
-    std::printf("%s", md::nodeName(n.type));
-    if (n.line >= 0) std::printf(" @%d", n.line + 1);
-    if (n.type == md::NodeType::Heading)
-        std::printf(" level=%d", n.level);
-    else if (n.type == md::NodeType::Text)
-        std::printf(" \"%s\"", n.text.c_str());
-    std::printf("\n");
-
-    for (const auto &child : n.children)
-    {
-        dump(*child, depth + 1);
-    }
-}
-
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
@@ -36,12 +18,6 @@ int main(int argc, char *argv[])
     {
         std::fprintf(stderr, "marky: '%s' is not a directory\n", qPrintable(dir));
         return 1;
-    }
-
-    auto root = md::parse("# Title\n\n> quote\n\n- a\n- b\n\n| a | b |\n|---|---|\n| 1 | 2 |\n");
-    if (root)
-    {
-        dump(*root, 0);
     }
 
     MainWindow w(info.absoluteFilePath());
