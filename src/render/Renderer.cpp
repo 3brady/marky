@@ -33,6 +33,8 @@ namespace render
             QTextDocument *doc = nullptr;
             QString baseDir;
             int maxImageWidth = 700;
+            int line = 0;
+            std::vector<Anchor> anchors;
         };
 
         QString str(const std::string &s)
@@ -87,6 +89,8 @@ namespace render
             {
                 c.cur.insertBlock(bf, cf);
             }
+
+            c.anchors.push_back({c.line, c.cur.position()});
         }
 
         QString plainText(const Node &n)
@@ -196,6 +200,10 @@ namespace render
             c.listDepth++;
             for (const auto &item : n.children)
             {
+                if (item->line >= 0)
+                {
+                    c.line = item->line;
+                }
                 QTextBlockFormat bf = baseBlock(c);
                 bf.setTopMargin(0);
                 bf.setBottomMargin(2);
@@ -272,6 +280,8 @@ namespace render
                 c.cur.insertBlock(QTextBlockFormat(), QTextCharFormat());
             QTextTable *table = c.cur.insertTable((int)rows.size(), ncols, tf);
 
+            c.anchors.push_back({c.line, table->firstPosition()});
+
             for (int r = 0; r < (int)rows.size(); ++r)
             {
                 const auto &cells = rows[r]->children;
@@ -307,6 +317,11 @@ namespace render
 
         void block(Ctx &c, const Node &n)
         {
+
+            if (n.line >= 0)
+            {
+                c.line = n.line;
+            }
             switch (n.type)
             {
             case NodeType::Heading:
@@ -377,6 +392,7 @@ namespace render
                 bf.setProperty(QTextFormat::BlockTrailingHorizontalRulerWidth,
                                QTextLength(QTextLength::PercentageLength, 100));
                 startBlock(c, bf, QTextCharFormat());
+                c.anchors.push_back({c.line, c.cur.position()});
                 break;
             }
             default:
@@ -388,16 +404,20 @@ namespace render
 
     }
 
-    std::unique_ptr<QTextDocument> toDocument(const md::Node &root, const QString &baseDir, int maxImageWidth)
+    Result toDocument(const md::Node &root, const QString &baseDir, int maxImageWidth)
     {
-        auto doc = std::make_unique<QTextDocument>();
+        Result r;
+        r.doc = std::make_unique<QTextDocument>();
+
         Ctx c;
-        c.cur = QTextCursor(doc.get());
-        c.doc = doc.get();
+        c.cur = QTextCursor(r.doc.get());
+        c.doc = r.doc.get();
         c.baseDir = baseDir;
         c.maxImageWidth = maxImageWidth;
         block(c, root);
-        return doc;
+
+        r.anchors = std::move(c.anchors);
+        return r;
     }
 
 } // namespace render

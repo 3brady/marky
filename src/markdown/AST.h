@@ -97,7 +97,8 @@ namespace md
     {
         NodeType type;
         int level = 0;
-        int task = 0; // 0 = not a task , 1 = unchecked   , 2  =
+        int task = 0; // 0 = not a task , 1 = unchecked   , 2  = chekced
+        int line = -1;
         std::string text;
         std::string url;
         std::string title;

@@ -1,6 +1,8 @@
 #pragma once
 #include <QMainWindow>
 #include <memory>
+#include<vector>
+#include"render/Renderer.h"
 #include <QTextDocument>
 
 class QPlainTextEdit;
@@ -26,17 +28,22 @@ private slots:
     void onLinkClicked(const QUrl &url);
     void refreshPreview();
     void updateTitle();
+    void syncPreviewToEditor();
+    void syncEditorToPreview();
 
 private:
     bool save();      // false = failed
     bool maybeSave(); // false = user cancelled (or save failed)
     void loadFile(const QString &path);
+    bool syncLock_ = false;      // true while we move a scrollbar ourselves
+    double anchorY(const render::Anchor& a) const;
 
     QTreeView *files_;
     QFileSystemModel *model_;
     QPlainTextEdit *editor_;
     QTextBrowser *preview_;
     std::unique_ptr<QTextDocument> doc_;
+    std::vector<render::Anchor> anchors_;
 
     QString rootDir_;
     QString currentPath_;

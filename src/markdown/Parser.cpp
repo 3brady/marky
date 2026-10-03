@@ -1,6 +1,7 @@
 #include "markdown/Parser.h"
 #include <md4c.h>
 #include <cstdio>
+#include <algorithm>
 #include "AST.h"
 
 namespace md
@@ -158,7 +159,20 @@ namespace md
     {
         std::unique_ptr<Node> root;
         std::vector<Node *> stack;
+        const char *base = nullptr;
+        size_t size = 0;
+        std::vector<size_t> lineStarts;
+        std::vector<Node *> pending;
     };
+
+    static int lineOf(const ASTState &s, const char *p)
+    {
+        if (p < s.base || p >= s.base + s.size)
+            return -1;
+
+        const size_t off = size_t(p - s.base);
+        return int(std::upper_bound(s.lineStarts.begin(), s.lineStarts.end(), off) - s.lineStarts.begin()) - 1;
+    }
 
     static int onEnterNode(MD_BLOCKTYPE type, void *detail, void *user)
     {
@@ -171,9 +185,11 @@ namespace md
             node->level = static_cast<const MD_BLOCK_H_DETAIL *>(detail)->level;
         }
 
-        if (type == MD_BLOCK_LI){
-            auto* d = static_cast<const MD_BLOCK_LI_DETAIL*>(detail);
-            if (d->is_task){
+        if (type == MD_BLOCK_LI)
+        {
+            auto *d = static_cast<const MD_BLOCK_LI_DETAIL *>(detail);
+            if (d->is_task)
+            {
                 node->task = (d->task_mark == ' ') ? 1 : 2;
             }
         }
@@ -190,6 +206,14 @@ namespace md
         }
 
         s->stack.push_back(raw);
+        if (raw == s->root.get())
+        {
+            raw->line = 0;
+        }
+        else
+        {
+            s->pending.push_back(raw);
+        }
         return 0;
     }
 
@@ -275,12 +299,26 @@ namespace md
             break; // U+FFFD
         case MD_TEXT_ENTITY:
             node->type = NodeType::Entity;
-            node->text.assign(str, size);     // raw, e.g. "&copy;"
+            node->text.assign(str, size); // raw, e.g. "&copy;"
             break;
         default:
             node->text.assign(str, size);
             break;
         }
+
+        if ((type == MD_TEXT_NORMAL || type == MD_TEXT_CODE || type == MD_TEXT_HTML) && !s->pending.empty())
+        {
+            const int ln = lineOf(*s, str);
+            if (ln >= 0)
+            {
+                for (Node *b : s->pending)
+                {
+                    b->line = ln;
+                }
+                s->pending.clear();
+            }
+        }
+
         s->stack.back()->children.push_back(std::move(node));
         return 0;
     }
@@ -298,6 +336,17 @@ namespace md
         parser.enter_span = onEnterSpanNode;
         parser.leave_span = onLeaveSpanNode;
         parser.text = onTextNode;
+        state.base = text.data();
+        state.size = text.size();
+        state.lineStarts.push_back(0);
+
+        for (size_t i = 0; i < text.size(); i++)
+        {
+            if (text[i] == '\n')
+            {
+                state.lineStarts.push_back(i + 1);
+            }
+        }
 
         if (md_parse(text.data(), (MD_SIZE)text.size(), &parser, &state) != 0)
         {
