@@ -1,14 +1,24 @@
 #include <QApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QSettings>
 #include <cstdio>
 #include "app/MainWindow.h"
 #include "markdown/AST.h"
 #include "markdown/Parser.h"
+#include "app/Theme.h"
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    QApplication::setStyle("Fusion");
+
+    QCoreApplication::setOrganizationName("marky");
+    QCoreApplication::setApplicationName("marky");
+    {
+        QSettings settings;
+        theme::apply(settings.value("dark", theme::systemPrefersDark()).toBool());
+    }
 
     const QStringList args = app.arguments();
     const QString dir = args.size() > 1 ? args.at(1) : QDir::currentPath();

@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "markdown/Parser.h"
 #include "render/Renderer.h"
+#include "app/Theme.h"
 #include <cstdio>
 #include <QAction>
 #include <QCloseEvent>
@@ -20,7 +21,40 @@
 #include <QAbstractTextDocumentLayout>
 #include <QTextBlock>
 #include <QScrollBar>
+#include <QSettings>
 #include <algorithm>
+#include <QFontDatabase>
+#include <QPainter>
+#include <QSplitterHandle>
+
+namespace
+{
+    class LineHandle : public QSplitterHandle
+    {
+    public:
+        using QSplitterHandle::QSplitterHandle;
+
+    protected:
+        void paintEvent(QPaintEvent *) override
+        {
+            QPainter p(this);
+            p.fillRect(rect(), palette().color(QPalette::Window));
+            p.setPen(palette().color(QPalette::Mid));
+            const int x = width() / 2;
+            p.drawLine(x, 0, x, height());
+        }
+    };
+
+    class Splitter : public QSplitter
+    {
+    public:
+        using QSplitter::QSplitter;
+
+    protected:
+        QSplitterHandle *createHandle() override { return new LineHandle(orientation(), this); }
+    };
+
+}
 
 MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
     : QMainWindow(parent),
@@ -43,6 +77,16 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
     files_->setHeaderHidden(true);
     connect(files_, &QTreeView::clicked, this, &MainWindow::onFileClicked);
 
+    auto *darkAct = new QAction(tr("&Dark mode"), this);
+    darkAct->setCheckable(true);
+    {
+        QSettings settings;
+        darkAct->setChecked(settings.value("dark", theme::systemPrefersDark()).toBool());
+    }
+    connect(darkAct, &QAction::toggled, this, [this](bool on)
+            { theme::apply(on); QSettings().setValue("dark", on); refreshPreview(); });
+    menuBar()->addMenu(tr("&View"))->addAction(darkAct);
+
     editor_->setReadOnly(true);
 
     renderTimer_ = new QTimer(this);
@@ -59,7 +103,7 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
     connect(editor_->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::syncPreviewToEditor);
     connect(preview_->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::syncEditorToPreview);
 
-    auto *split = new QSplitter(Qt::Horizontal);
+    auto* split = new Splitter(Qt::Horizontal);
     split->addWidget(files_);
     split->addWidget(editor_);
     split->addWidget(preview_);
@@ -67,7 +111,18 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
     split->setStretchFactor(0, 0);
     split->setStretchFactor(1, 1);
     split->setStretchFactor(2, 1);
+    files_->setFrameShape(QFrame::NoFrame);
+    editor_->setFrameShape(QFrame::NoFrame);
+    preview_->setFrameShape(QFrame::NoFrame);
+    split->setHandleWidth(6);
+    files_->setBackgroundRole(QPalette::Window);
+    files_->viewport()->setBackgroundRole(QPalette::Window);
+    files_->setIndentation(16);
+    editor_->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    editor_->document()->setDocumentMargin(16);
+    editor_->setTabStopDistance(4 * editor_->fontMetrics().horizontalAdvance(' '));
     setCentralWidget(split);
+    editor_->document()->setModified(false);
 
     auto *saveAct = new QAction(tr("&Save"), this);
     saveAct->setShortcut(QKeySequence::Save);
@@ -79,15 +134,10 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
 
 void MainWindow::updateTitle()
 {
-    if (currentPath_.isEmpty())
-    {
-        setWindowTitle("marky - " + rootDir_);
-    }
-    else
-    {
-        setWindowTitle(QFileInfo(currentPath_).fileName() + "[*] - marky");
-    }
-    setWindowModified(editor_->document()->isModified());
+    const bool hasFile = !currentPath_.isEmpty();
+    setWindowTitle(hasFile ? QFileInfo(currentPath_).fileName() + "[*] - marky"
+                           : "marky - " + rootDir_);
+    setWindowModified(hasFile && editor_->document()->isModified());
 }
 
 void MainWindow::loadFile(const QString &path)
@@ -150,7 +200,7 @@ bool MainWindow::save()
 
 bool MainWindow::maybeSave()
 {
-    if (!editor_->document()->isModified())
+    if (currentPath_.isEmpty() || !editor_->document()->isModified())
         return true;
 
     const auto answer = QMessageBox::warning(
@@ -188,7 +238,8 @@ void MainWindow::refreshPreview()
     doc_ = std::move(r.doc);
     anchors_ = std::move(r.anchors);
 
-    QTimer::singleShot(0, this, [this]{ syncLock_ = false; syncPreviewToEditor(); });
+    QTimer::singleShot(0, this, [this]
+                       { syncLock_ = false; syncPreviewToEditor(); });
 }
 
 double MainWindow::anchorY(const render::Anchor &a) const

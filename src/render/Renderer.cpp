@@ -24,6 +24,8 @@ namespace render
         using md::Node;
         using md::NodeType;
 
+        constexpr int kGap = 6;
+
         struct Ctx
         {
             QTextCursor cur;
@@ -46,16 +48,33 @@ namespace render
         {
             switch (t)
             {
-            case NodeType::Text:
-            case NodeType::LineBreak:
-            case NodeType::Emphasis:
-            case NodeType::Strong:
-            case NodeType::StrikeThrough:
-            case NodeType::InlineCode:
-                return true;
-            default:
+            case NodeType::Document:
+            case NodeType::Quote:
+            case NodeType::BulletList:
+            case NodeType::OrderedList:
+            case NodeType::ListItem:
+            case NodeType::Rule:
+            case NodeType::Heading:
+            case NodeType::CodeBlock:
+            case NodeType::Html:
+            case NodeType::Paragraph:
+            case NodeType::Table:
+            case NodeType::TableHead:
+            case NodeType::TableBody:
+            case NodeType::TableRow:
+            case NodeType::TableHeaderCell:
+            case NodeType::TableCell:
                 return false;
+            default:
+                return true; // Text, spans, links, images, entities, anything added later
             }
+        }
+
+        QColor tint(int alpha)
+        {
+            QColor c = QGuiApplication::palette().color(QPalette::Text);
+            c.setAlpha(alpha);
+            return c;
         }
 
         QTextBlockFormat baseBlock(const Ctx &c)
@@ -64,7 +83,7 @@ namespace render
             if (c.quoteDepth > 0)
             {
                 bf.setLeftMargin(16 * c.quoteDepth);
-                bf.setBackground(QColor(128, 128, 128, 28));
+                bf.setBackground(tint(20));
             }
             return bf;
         }
@@ -157,7 +176,7 @@ namespace render
                 break;
             case NodeType::InlineCode:
                 fmt.setFontFamilies({"monospace"});
-                fmt.setBackground(QColor(0, 0, 0, 25));
+                fmt.setBackground(tint(25));
                 break;
             case NodeType::Link:
                 fmt.setAnchor(true);
@@ -207,6 +226,13 @@ namespace render
                 QTextBlockFormat bf = baseBlock(c);
                 bf.setTopMargin(0);
                 bf.setBottomMargin(2);
+
+                if (!list && c.listDepth == 1)
+                {
+                    bf.setTopMargin(kGap);
+                }
+
+                bf.setLineHeight(145, QTextBlockFormat::ProportionalHeight);
                 if (item->task)
                 {
                     if (item->task == 2)
@@ -251,7 +277,7 @@ namespace render
             if (c.listDepth == 0)
             { // only after the outermost list
                 QTextBlockFormat gap;
-                gap.setBottomMargin(8);
+                gap.setBottomMargin(kGap);
                 c.cur.mergeBlockFormat(gap);
             }
         }
@@ -274,7 +300,8 @@ namespace render
             tf.setCellSpacing(0);
             tf.setHeaderRowCount(1);
             tf.setWidth(QTextLength(QTextLength::PercentageLength, 100));
-            tf.setBottomMargin(10);
+            tf.setTopMargin(kGap);
+            tf.setBottomMargin(kGap);
 
             if (!c.reuse)
                 c.cur.insertBlock(QTextBlockFormat(), QTextCharFormat());
@@ -334,9 +361,14 @@ namespace render
                 cf.setFontPointSize(QGuiApplication::font().pointSizeF() * scale[lvl - 1]);
 
                 QTextBlockFormat bf = baseBlock(c);
-                bf.setTopMargin(12);
-                bf.setBottomMargin(6);
+
+                bf.setTopMargin(lvl <= 2 ? 24 : 16);
+                bf.setBottomMargin(lvl <= 2 ? 10 : 6);
                 bf.setHeadingLevel(lvl);
+                if (lvl <= 2)
+                {
+                    bf.setProperty(QTextFormat::BlockTrailingHorizontalRulerWidth, QTextLength(QTextLength::PercentageLength, 100));
+                }
 
                 startBlock(c, bf, cf);
                 for (const auto &ch : n.children)
@@ -346,7 +378,9 @@ namespace render
             case NodeType::Paragraph:
             {
                 QTextBlockFormat bf = baseBlock(c);
-                bf.setBottomMargin(8);
+                bf.setTopMargin(kGap);
+                bf.setBottomMargin(kGap);
+                bf.setLineHeight(145, QTextBlockFormat::ProportionalHeight);
                 const QTextCharFormat cf = baseChar(c);
                 startBlock(c, bf, cf);
                 for (const auto &ch : n.children)
@@ -373,9 +407,9 @@ namespace render
                 code.replace(QLatin1Char('\n'), QChar(QChar::LineSeparator));
 
                 QTextBlockFormat bf = baseBlock(c);
-                bf.setBackground(QColor(0, 0, 0, 30));
-                bf.setTopMargin(4);
-                bf.setBottomMargin(10);
+                bf.setBackground(tint(30));
+                bf.setTopMargin(kGap);
+                bf.setBottomMargin(kGap);
                 QTextCharFormat cf = baseChar(c);
                 cf.setFontFamilies({"monospace"});
 
@@ -408,6 +442,7 @@ namespace render
     {
         Result r;
         r.doc = std::make_unique<QTextDocument>();
+        r.doc->setDocumentMargin(28);
 
         Ctx c;
         c.cur = QTextCursor(r.doc.get());
