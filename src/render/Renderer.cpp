@@ -24,7 +24,8 @@ namespace render
         using md::Node;
         using md::NodeType;
 
-        constexpr int kGap = 6;
+        constexpr int kGap = 8;
+        constexpr int kLineGap = 5;
 
         struct Ctx
         {
@@ -233,7 +234,7 @@ namespace render
                     bf.setTopMargin(kGap);
                 }
 
-                bf.setLineHeight(145, QTextBlockFormat::ProportionalHeight);
+                bf.setLineHeight(kLineGap, QTextBlockFormat::LineDistanceHeight);
                 if (item->task)
                 {
                     if (item->task == 2)
@@ -278,7 +279,7 @@ namespace render
             if (c.listDepth == 0)
             { // only after the outermost list
                 QTextBlockFormat gap;
-                gap.setBottomMargin(kGap);
+                gap.setBottomMargin(kGap - kLineGap);
                 c.cur.mergeBlockFormat(gap);
             }
         }
@@ -380,8 +381,8 @@ namespace render
             {
                 QTextBlockFormat bf = baseBlock(c);
                 bf.setTopMargin(kGap);
-                bf.setBottomMargin(kGap);
-                bf.setLineHeight(145, QTextBlockFormat::ProportionalHeight);
+                bf.setBottomMargin(kGap - kLineGap);
+                bf.setLineHeight(kLineGap, QTextBlockFormat::LineDistanceHeight);
                 const QTextCharFormat cf = baseChar(c);
                 startBlock(c, bf, cf);
                 for (const auto &ch : n.children)
@@ -424,10 +425,13 @@ namespace render
             case NodeType::Rule:
             {
                 QTextBlockFormat bf = baseBlock(c);
+                bf.setTopMargin(0);
+                bf.setBottomMargin(0);
                 bf.setProperty(QTextFormat::BlockTrailingHorizontalRulerWidth,
                                QTextLength(QTextLength::PercentageLength, 100));
-                startBlock(c, bf, QTextCharFormat());
-                c.anchors.push_back({c.line, c.cur.position()});
+                QTextCharFormat cf = baseChar(c);
+                cf.setFontPointSize(4);
+                startBlock(c, bf, cf);
                 break;
             }
             default:
