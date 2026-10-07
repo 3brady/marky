@@ -26,6 +26,8 @@
 #include <QFontDatabase>
 #include <QPainter>
 #include <QSplitterHandle>
+#include <QMenu>
+#include <QWheelEvent>
 
 namespace
 {
@@ -85,7 +87,26 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
     }
     connect(darkAct, &QAction::toggled, this, [this](bool on)
             { theme::apply(on); QSettings().setValue("dark", on); refreshPreview(); });
-    menuBar()->addMenu(tr("&View"))->addAction(darkAct);
+
+    auto *zoomIn = new QAction(tr("Zoom &In"), this);
+    zoomIn->setShortcuts({QKeySequence(QKeySequence::ZoomIn), QKeySequence("Ctrl+=")}); // Ctrl+= needs no Shift
+    connect(zoomIn, &QAction::triggered, this, [this]
+            { setFontSize(fontSize_ + 1); });
+
+    auto *zoomOut = new QAction(tr("Zoom &Out"), this);
+    zoomOut->setShortcut(QKeySequence::ZoomOut);
+    connect(zoomOut, &QAction::triggered, this, [this]
+            { setFontSize(fontSize_ - 1); });
+
+    auto *zoomReset = new QAction(tr("&Reset Zoom"), this);
+    zoomReset->setShortcut(QKeySequence("Ctrl+0"));
+    connect(zoomReset, &QAction::triggered, this, [this]
+            { setFontSize(defaultFontSize_); });
+
+    QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
+    viewMenu->addAction(darkAct);
+    viewMenu->addSeparator();
+    viewMenu->addActions({zoomIn, zoomOut, zoomReset});
 
     editor_->setReadOnly(true);
 
@@ -103,7 +124,7 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
     connect(editor_->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::syncPreviewToEditor);
     connect(preview_->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::syncEditorToPreview);
 
-    auto* split = new Splitter(Qt::Horizontal);
+    auto *split = new Splitter(Qt::Horizontal);
     split->addWidget(files_);
     split->addWidget(editor_);
     split->addWidget(preview_);
@@ -118,11 +139,15 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
     files_->setBackgroundRole(QPalette::Window);
     files_->viewport()->setBackgroundRole(QPalette::Window);
     files_->setIndentation(16);
-    editor_->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
     editor_->document()->setDocumentMargin(16);
-    editor_->setTabStopDistance(4 * editor_->fontMetrics().horizontalAdvance(' '));
     setCentralWidget(split);
     editor_->document()->setModified(false);
+    defaultFontSize_ = QGuiApplication::font().pointSizeF() > 0 ? QGuiApplication::font().pointSizeF() : 11;
+    fontSize_ = qBound(7.0, QSettings().value("fontSize", defaultFontSize_).toDouble(), 40.0);
+    applyFontSize();
+
+    editor_->viewport()->installEventFilter(this); // for Ctrl+wheel
+    preview_->viewport()->installEventFilter(this);
 
     auto *saveAct = new QAction(tr("&Save"), this);
     saveAct->setShortcut(QKeySequence::Save);
@@ -230,9 +255,12 @@ void MainWindow::refreshPreview()
         return;
 
     const QString baseDir = currentPath_.isEmpty() ? rootDir_ : QFileInfo(currentPath_).absolutePath();
-    const int maxW = qMax(200, preview_->viewport()->width() - 40);
+    render::Options opt;
+    opt.baseDir = baseDir;
+    opt.maxImageWidth = qMax(200, preview_->viewport()->width() - 40);
+    opt.fontPointSize = fontSize_;
+    auto r = render::toDocument(*root, opt);
 
-    auto r = render::toDocument(*root, baseDir, maxW);
     syncLock_ = true;
     preview_->setDocument(r.doc.get());
     doc_ = std::move(r.doc);
@@ -346,4 +374,43 @@ void MainWindow::onLinkClicked(const QUrl &url)
     const QString scheme = url.scheme();
     if (scheme == "http" || scheme == "https" || scheme == "mailto")
         QDesktopServices::openUrl(url);
+}
+
+void MainWindow::applyFontSize()
+{
+    QFont f = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+    f.setPointSizeF(fontSize_);
+
+    const bool wasModified = editor_->document()->isModified();
+    editor_->setFont(f);
+    editor_->setTabStopDistance(4 * editor_->fontMetrics().horizontalAdvance(' '));
+    editor_->document()->setModified(wasModified);
+}
+
+void MainWindow::setFontSize(double pt)
+{
+    pt = qBound(7.0, pt, 40.0);
+    if (qFuzzyCompare(pt, fontSize_))
+        return;
+    fontSize_ = pt;
+    QSettings().setValue("fontSize", fontSize_);
+    applyFontSize();
+    refreshPreview();
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *e)
+{
+    if (e->type() == QEvent::Wheel &&
+        (obj == editor_->viewport() || obj == preview_->viewport()))
+    {
+        auto *we = static_cast<QWheelEvent *>(e);
+        if (we->modifiers() & Qt::ControlModifier)
+        {
+            const int dy = we->angleDelta().y();
+            if (dy != 0)
+                setFontSize(fontSize_ + (dy > 0 ? 1 : -1));
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(obj, e);
 }

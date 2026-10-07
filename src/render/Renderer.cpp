@@ -36,6 +36,7 @@ namespace render
             QString baseDir;
             int maxImageWidth = 700;
             int line = 0;
+            double basePt = 11;
             std::vector<Anchor> anchors;
         };
 
@@ -358,7 +359,7 @@ namespace render
 
                 QTextCharFormat cf = baseChar(c);
                 cf.setFontWeight(QFont::Bold);
-                cf.setFontPointSize(QGuiApplication::font().pointSizeF() * scale[lvl - 1]);
+                cf.setFontPointSize(c.basePt * scale[lvl - 1]);
 
                 QTextBlockFormat bf = baseBlock(c);
 
@@ -438,17 +439,23 @@ namespace render
 
     }
 
-    Result toDocument(const md::Node &root, const QString &baseDir, int maxImageWidth)
+    Result toDocument(const md::Node &root, const Options &opt)
     {
         Result r;
         r.doc = std::make_unique<QTextDocument>();
         r.doc->setDocumentMargin(28);
 
+        QFont base = QGuiApplication::font();
+        if (opt.fontPointSize > 0)
+            base.setPointSizeF(opt.fontPointSize);
+        r.doc->setDefaultFont(base);
+
         Ctx c;
         c.cur = QTextCursor(r.doc.get());
         c.doc = r.doc.get();
-        c.baseDir = baseDir;
-        c.maxImageWidth = maxImageWidth;
+        c.baseDir = opt.baseDir;
+        c.maxImageWidth = opt.maxImageWidth;
+        c.basePt = base.pointSizeF();
         block(c, root);
 
         r.anchors = std::move(c.anchors);

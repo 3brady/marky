@@ -20,6 +20,12 @@ namespace render
         std::vector<Anchor> anchors;
     };
 
-    Result toDocument(const md::Node &root, const QString &baseDir, int maxImageWidth);
+    struct Options{
+        QString baseDir;
+        int maxImageWidth = 700;
+        double fontPointSize = 0;
+    };
+
+    Result toDocument(const md::Node &root, const Options &opt);
 
 }

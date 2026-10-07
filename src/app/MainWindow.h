@@ -13,6 +13,7 @@ class QModelIndex;
 class QTimer;
 class QCloseEvent;
 class QUrl;
+class QEvent;
 
 class MainWindow : public QMainWindow
 {
@@ -21,6 +22,7 @@ public:
     explicit MainWindow(const QString &rootDir, QWidget *parent = nullptr);
 
 protected:
+    bool eventFilter(QObject* obj, QEvent* e) override;
     void closeEvent(QCloseEvent *e) override;
 
 private slots:
@@ -30,6 +32,8 @@ private slots:
     void updateTitle();
     void syncPreviewToEditor();
     void syncEditorToPreview();
+    void setFontSize(double pt);
+    void applyFontSize();
 
 private:
     bool save();      // false = failed
@@ -37,6 +41,8 @@ private:
     void loadFile(const QString &path);
     bool syncLock_ = false;      // true while we move a scrollbar ourselves
     double anchorY(const render::Anchor& a) const;
+    double fontSize_ = 11;
+    double defaultFontSize_ = 11;
 
     QTreeView *files_;
     QFileSystemModel *model_;
