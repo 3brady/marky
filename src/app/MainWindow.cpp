@@ -28,6 +28,8 @@
 #include <QSplitterHandle>
 #include <QMenu>
 #include <QWheelEvent>
+#include <QDir>
+#include <QInputDialog>
 
 namespace
 {
@@ -55,6 +57,16 @@ namespace
     protected:
         QSplitterHandle *createHandle() override { return new LineHandle(orientation(), this); }
     };
+
+    static QString cleanName(QString name)
+    {
+        name = name.trimmed();
+        if (name.isEmpty() || name.contains('/') || name.contains('\\') || name.startsWith('.'))
+            return {};
+        if (!name.endsWith(".md", Qt::CaseInsensitive) && !name.endsWith(".markdown", Qt::CaseInsensitive))
+            name += ".md";
+        return name;
+    }
 
 }
 
@@ -149,10 +161,28 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
     editor_->viewport()->installEventFilter(this); // for Ctrl+wheel
     preview_->viewport()->installEventFilter(this);
 
+    auto *newAct = new QAction(tr("&New File..."), this);
+    newAct->setShortcut(QKeySequence::New);
+    connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
+
     auto *saveAct = new QAction(tr("&Save"), this);
     saveAct->setShortcut(QKeySequence::Save);
     connect(saveAct, &QAction::triggered, this, &MainWindow::save);
-    menuBar()->addMenu(tr("&File"))->addAction(saveAct);
+
+    auto *saveAsAct = new QAction(tr("Save &As..."), this);
+    saveAsAct->setShortcut(QKeySequence::SaveAs);
+    connect(saveAsAct, &QAction::triggered, this, &MainWindow::saveAs);
+
+    auto *quitAct = new QAction(tr("&Quit"), this);
+    quitAct->setShortcut(QKeySequence::Quit);
+    connect(quitAct, &QAction::triggered, this, &QWidget::close);
+
+    QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
+    fileMenu->addAction(newAct);
+    fileMenu->addAction(saveAct);
+    fileMenu->addAction(saveAsAct);
+    fileMenu->addSeparator();
+    fileMenu->addAction(quitAct);
 
     updateTitle();
 }
@@ -413,4 +443,83 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e)
         }
     }
     return QMainWindow::eventFilter(obj, e);
+}
+
+QString MainWindow::targetDir() const
+{
+    const QModelIndex idx = files_->currentIndex();
+    if (!idx.isValid())
+        return rootDir_;
+    const QString p = model_->filePath(idx);
+    return model_->isDir(idx) ? p : QFileInfo(p).absolutePath();
+}
+
+void MainWindow::newFile()
+{
+    if (!maybeSave())
+        return;
+
+    bool ok = false;
+    const QString input = QInputDialog::getText(this, tr("New file"), tr("File name:"),
+                                                QLineEdit::Normal, "untitled.md", &ok);
+    if (!ok)
+        return;
+
+    const QString name = cleanName(input);
+    if (name.isEmpty())
+    {
+        QMessageBox::warning(this, "marky", tr("Please use a plain file name (no folders or slashes)."));
+        return;
+    }
+
+    const QString path = QDir(targetDir()).absoluteFilePath(name);
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::NewOnly))
+    {
+        QMessageBox::warning(this, "marky", tr("Cannot create %1:\n%2").arg(name, f.errorString()));
+        return;
+    }
+    f.close();
+
+    loadFile(path);
+    files_->setCurrentIndex(model_->index(path));
+}
+
+bool MainWindow::saveAs()
+{
+    if (currentPath_.isEmpty())
+        return true;
+
+    bool ok = false;
+    const QString input = QInputDialog::getText(this, tr("Save as"), tr("New file name:"),
+                                                QLineEdit::Normal, QFileInfo(currentPath_).fileName(), &ok);
+    if (!ok)
+        return false;
+
+    const QString name = cleanName(input);
+    if (name.isEmpty())
+    {
+        QMessageBox::warning(this, "marky", tr("Please use a plain file name (no folders or slashes)."));
+        return false;
+    }
+
+    const QString path = QDir(QFileInfo(currentPath_).absolutePath()).absoluteFilePath(name);
+    if (path == currentPath_)
+        return save();
+
+    if (QFileInfo::exists(path) &&
+        QMessageBox::question(this, "marky", tr("%1 the file already exists. Do you want to replace it?").arg(name)) != QMessageBox::Yes)
+        return false;
+
+    const QString old = currentPath_;
+    currentPath_ = path;
+    if (!save())
+    {
+        currentPath_ = old;
+        return false;
+    }
+
+    updateTitle();
+    files_->setCurrentIndex(model_->index(path));
+    return true;
 }

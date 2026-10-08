@@ -34,6 +34,9 @@ private slots:
     void syncEditorToPreview();
     void setFontSize(double pt);
     void applyFontSize();
+    void newFile();
+    bool saveAs();
+    QString targetDir() const;
 
 private:
     bool save();      // false = failed
