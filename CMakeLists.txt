@@ -8,11 +8,21 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-# md4c options must be set BEFORE add_subdirectory
 set(BUILD_MD2HTML_EXECUTABLE OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 add_subdirectory(libs/md4c)
+
+add_library(marky_markdown STATIC
+    src/markdown/AST.h
+    src/markdown/Parser.h
+    src/markdown/Parser.cpp
+)
+target_include_directories(marky_markdown
+    PUBLIC src
+    PRIVATE libs/md4c/md4c
+)
+target_link_libraries(marky_markdown PUBLIC md4c)
 
 add_executable(marky
     src/main.cpp
@@ -20,11 +30,12 @@ add_executable(marky
     src/app/MainWindow.cpp
     src/app/Theme.h
     src/app/Theme.cpp
-    src/markdown/AST.h
-    src/markdown/Parser.h
-    src/markdown/Parser.cpp
     src/render/Renderer.h
     src/render/Renderer.cpp
 )
-target_include_directories(marky PRIVATE src libs/md4c/md4c)
-target_link_libraries(marky PRIVATE Qt6::Widgets md4c)
+target_link_libraries(marky PRIVATE Qt6::Widgets marky_markdown)
+
+enable_testing()
+add_executable(markdown_tests tests/markdown_tests.cpp)
+target_link_libraries(markdown_tests PRIVATE marky_markdown)
+add_test(NAME markdown COMMAND markdown_tests)
