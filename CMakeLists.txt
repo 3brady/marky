@@ -32,6 +32,8 @@ add_executable(marky
     src/app/Theme.cpp
     src/render/Renderer.h
     src/render/Renderer.cpp
+    src/app/Highlighter.cpp
+    src/app/Highlighter.h
 )
 target_link_libraries(marky PRIVATE Qt6::Widgets marky_markdown)
 

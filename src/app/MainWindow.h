@@ -14,6 +14,7 @@ class QTimer;
 class QCloseEvent;
 class QUrl;
 class QEvent;
+class Highlighter;
 
 class MainWindow : public QMainWindow
 {
@@ -53,6 +54,7 @@ private:
     QTextBrowser *preview_;
     std::unique_ptr<QTextDocument> doc_;
     std::vector<render::Anchor> anchors_;
+    Highlighter* highlighter_ = nullptr;
 
     QString rootDir_;
     QString currentPath_;

@@ -2,6 +2,7 @@
 #include "markdown/Parser.h"
 #include "render/Renderer.h"
 #include "app/Theme.h"
+#include "app/Highlighter.h"
 #include <cstdio>
 #include <QAction>
 #include <QCloseEvent>
@@ -75,6 +76,7 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
       files_(new QTreeView),
       model_(new QFileSystemModel(this)),
       editor_(new QPlainTextEdit),
+      highlighter_(new Highlighter(editor_->document()) ),
       preview_(new QTextBrowser)
 {
 
@@ -97,9 +99,8 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
         QSettings settings;
         darkAct->setChecked(settings.value("dark", theme::systemPrefersDark()).toBool());
     }
-    connect(darkAct, &QAction::toggled, this, [this](bool on)
-            { theme::apply(on); QSettings().setValue("dark", on); refreshPreview(); });
-
+    connect(darkAct, &QAction::toggled, this, [this](bool on){ theme::apply(on); highlighter_->refresh(on); QSettings().setValue("dark", on); refreshPreview(); });      
+    
     auto *zoomIn = new QAction(tr("Zoom &In"), this);
     zoomIn->setShortcuts({QKeySequence(QKeySequence::ZoomIn), QKeySequence("Ctrl+=")}); // Ctrl+= needs no Shift
     connect(zoomIn, &QAction::triggered, this, [this]
