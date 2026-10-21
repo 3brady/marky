@@ -31,6 +31,7 @@
 #include <QWheelEvent>
 #include <QDir>
 #include <QInputDialog>
+#include <QStatusBar>
 
 namespace
 {
@@ -76,7 +77,7 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
       files_(new QTreeView),
       model_(new QFileSystemModel(this)),
       editor_(new QPlainTextEdit),
-      highlighter_(new Highlighter(editor_->document()) ),
+      highlighter_(new Highlighter(editor_->document())),
       preview_(new QTextBrowser)
 {
 
@@ -99,8 +100,9 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
         QSettings settings;
         darkAct->setChecked(settings.value("dark", theme::systemPrefersDark()).toBool());
     }
-    connect(darkAct, &QAction::toggled, this, [this](bool on){ theme::apply(on); highlighter_->refresh(on); QSettings().setValue("dark", on); refreshPreview(); });      
-    
+    connect(darkAct, &QAction::toggled, this, [this](bool on)
+            { theme::apply(on); highlighter_->refresh(on); QSettings().setValue("dark", on); refreshPreview(); });
+
     auto *zoomIn = new QAction(tr("Zoom &In"), this);
     zoomIn->setShortcuts({QKeySequence(QKeySequence::ZoomIn), QKeySequence("Ctrl+=")}); // Ctrl+= needs no Shift
     connect(zoomIn, &QAction::triggered, this, [this]
@@ -404,7 +406,51 @@ void MainWindow::onLinkClicked(const QUrl &url)
 {
     const QString scheme = url.scheme();
     if (scheme == "http" || scheme == "https" || scheme == "mailto")
+    {
         QDesktopServices::openUrl(url);
+        return;
+    }
+
+    QString path;
+    if (url.isRelative())
+    {
+        const QString rel = url.path(QUrl::FullyDecoded);
+        if (rel.isEmpty())
+            return;
+        const QString baseDir = currentPath_.isEmpty()
+                                    ? rootDir_
+                                    : QFileInfo(currentPath_).absolutePath();
+        path = QDir(baseDir).absoluteFilePath(rel);
+    }
+    else if (url.isLocalFile())
+    {
+        path = url.toLocalFile();
+    }
+    else
+    {
+        return;
+    }
+
+    const QFileInfo fi(path);
+    if (!fi.isFile())
+    {
+        statusBar()->showMessage(tr("File not found: %1").arg(path), 4000);
+        return;
+    }
+
+    const QString canon = fi.canonicalFilePath();
+    const QString root = QDir(rootDir_).canonicalPath();
+    const QString ext = fi.suffix().toLower();
+    if (!canon.startsWith(root + '/') || (ext != "md" && ext != "markdown"))
+    {
+        statusBar()->showMessage(tr("Not a Markdown file in this project"), 4000);
+        return;
+    }
+
+    if (!maybeSave())
+        return;
+    loadFile(canon);
+    files_->setCurrentIndex(model_->index(canon));
 }
 
 void MainWindow::applyFontSize()
