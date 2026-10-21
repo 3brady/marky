@@ -1,8 +1,8 @@
 #include "MainWindow.h"
 #include "markdown/Parser.h"
 #include "render/Renderer.h"
-#include "app/Theme.h"
-#include "app/Highlighter.h"
+#include "style/Theme.h"
+#include "style/Highlighter.h"
 #include <cstdio>
 #include <QAction>
 #include <QCloseEvent>

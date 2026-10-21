@@ -1,4 +1,4 @@
-#include "app/Theme.h"
+#include "style/Theme.h"
 #include <QApplication>
 #include <QGuiApplication>
 #include <QPalette>

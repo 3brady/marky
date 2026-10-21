@@ -1,4 +1,4 @@
-#include "app/Highlighter.h"
+#include "style/Highlighter.h"
 
 #include <QApplication>
 #include <QPalette>

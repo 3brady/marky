@@ -6,7 +6,7 @@
 #include "app/MainWindow.h"
 #include "markdown/AST.h"
 #include "markdown/Parser.h"
-#include "app/Theme.h"
+#include "style/Theme.h"
 
 int main(int argc, char *argv[])
 {
