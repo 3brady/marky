@@ -36,6 +36,7 @@ private slots:
     void setFontSize(double pt);
     void applyFontSize();
     void newFile();
+    void exportPdf();
     bool saveAs();
     QString targetDir() const;
 

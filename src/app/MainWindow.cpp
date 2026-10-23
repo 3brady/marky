@@ -32,6 +32,10 @@
 #include <QDir>
 #include <QInputDialog>
 #include <QStatusBar>
+#include <QFileDialog>
+#include <QPdfWriter>
+#include <QPageSize>
+#include <QTextDocument>
 
 namespace
 {
@@ -186,6 +190,10 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
     fileMenu->addAction(saveAsAct);
     fileMenu->addSeparator();
     fileMenu->addAction(quitAct);
+    fileMenu->addSeparator();
+
+    auto *exportPdfAct = fileMenu->addAction(tr("Export as &PDF"));
+    connect(exportPdfAct, &QAction::triggered, this, &MainWindow::exportPdf);
 
     updateTitle();
 }
@@ -569,4 +577,60 @@ bool MainWindow::saveAs()
     updateTitle();
     files_->setCurrentIndex(model_->index(path));
     return true;
+}
+
+void MainWindow::exportPdf()
+{
+    const QFileInfo cur(currentPath_);
+    const QString suggested = currentPath_.isEmpty()
+                                  ? rootDir_ + "/untitled.pdf"
+                                  : cur.dir().filePath(cur.completeBaseName() + ".pdf");
+
+    QString path = QFileDialog::getSaveFileName(this, tr("Export as PDF"), suggested,
+                                                tr("PDF files (*.pdf)"));
+    if (path.isEmpty())
+    {
+        return;
+    }
+
+    if (!path.endsWith(".pdf", Qt::CaseInsensitive))
+    {
+        path += ".pdf";
+    }
+
+    const QByteArray utf8 = editor_->toPlainText().toUtf8();
+    auto root = md::parse(std::string_view(utf8.constData(), (size_t)utf8.size()));
+    if (!root)
+    {
+        return;
+    }
+
+    render::Options opt;
+    opt.baseDir = currentPath_.isEmpty() ? rootDir_ : cur.absolutePath();
+    opt.maxImageWidth = 640;
+    opt.fontPointSize = fontSize_;
+
+    // stops the dark theme for a second so the pdf would be white and then turns it back on
+    const bool dark = qApp->palette().color(QPalette::Base).lightness() < 128;
+    
+    if (dark)
+    {
+        theme::apply(false);
+    }
+
+    auto result = render::toDocument(*root, opt);
+    
+    if (dark)
+    {
+        theme::apply(true);
+    }
+
+    QPdfWriter writer(path);
+    writer.setPageSize(QPageSize(QPageSize::A4));
+    writer.setPageMargins(QMarginsF(18, 18, 18, 18), QPageLayout::Millimeter);
+    writer.setResolution(96);
+    writer.setTitle(cur.completeBaseName());
+    result.doc->print(&writer);
+
+    statusBar()->showMessage(tr("Exported %1").arg(path), 4000);
 }
