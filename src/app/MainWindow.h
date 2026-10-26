@@ -37,6 +37,7 @@ private slots:
     void applyFontSize();
     void newFile();
     void exportPdf();
+    void gotoHeading(const QString& fragment);
     bool saveAs();
     QString targetDir() const;
 

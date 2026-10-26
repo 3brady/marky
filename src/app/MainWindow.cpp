@@ -36,6 +36,9 @@
 #include <QPdfWriter>
 #include <QPageSize>
 #include <QTextDocument>
+#include <QHash>
+#include <QRegularExpression>
+#include <QTextCursor>
 
 namespace
 {
@@ -72,6 +75,26 @@ namespace
         if (!name.endsWith(".md", Qt::CaseInsensitive) && !name.endsWith(".markdown", Qt::CaseInsensitive))
             name += ".md";
         return name;
+    }
+
+    QString slugify(QString s)
+    {
+        // i really hate regex
+        static const QRegularExpression link(R"(!?\[([^\]]*)\]\([^)]*\))");
+        static const QRegularExpression marks(R"([`*~])");
+        s.replace(link, "\\1");
+        s.remove(marks);
+        s = s.trimmed().toLower();
+
+        QString out;
+        for (QChar c : s)
+        {
+            if (c.isLetterOrNumber() || c == '_' || c == '-')
+                out += c;
+            else if (c == ' ')
+                out += '-';
+        }
+        return out;
     }
 
 }
@@ -410,6 +433,45 @@ void MainWindow::syncEditorToPreview()
     syncLock_ = false;
 }
 
+void MainWindow::gotoHeading(const QString &fragment)
+{
+    static const QRegularExpression headingRe(R"(^\s{0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$)");
+    static const QRegularExpression fenceRe(R"(^\s{0,3}(```|~~~))");
+
+    const QString wanted = QUrl::fromPercentEncoding(fragment.toUtf8()).toLower();
+    QHash<QString, int> seen;
+    bool inCode = false;
+
+    for (QTextBlock b = editor_->document()->begin(); b.isValid(); b = b.next())
+    {
+        const QString line = b.text();
+        if (fenceRe.match(line).hasMatch())
+        {
+            inCode = !inCode;
+            continue;
+        }
+        if (inCode)
+            continue;
+
+        const auto m = headingRe.match(line);
+        if (!m.hasMatch())
+            continue;
+
+        QString slug = slugify(m.captured(1));
+        const int n = seen[slug]++;
+        if (n > 0)
+            slug += "-" + QString::number(n);
+
+        if (slug == wanted)
+        {
+            editor_->setTextCursor(QTextCursor(b));
+            editor_->centerCursor();
+            return;
+        }
+    }
+    statusBar()->showMessage(tr("Section not found: %1").arg(fragment), 4000);
+}
+
 void MainWindow::onLinkClicked(const QUrl &url)
 {
     const QString scheme = url.scheme();
@@ -424,7 +486,11 @@ void MainWindow::onLinkClicked(const QUrl &url)
     {
         const QString rel = url.path(QUrl::FullyDecoded);
         if (rel.isEmpty())
+        {
+            if (!url.fragment().isEmpty())
+                gotoHeading(url.fragment());
             return;
+        }
         const QString baseDir = currentPath_.isEmpty()
                                     ? rootDir_
                                     : QFileInfo(currentPath_).absolutePath();
@@ -455,10 +521,16 @@ void MainWindow::onLinkClicked(const QUrl &url)
         return;
     }
 
-    if (!maybeSave())
-        return;
-    loadFile(canon);
-    files_->setCurrentIndex(model_->index(canon));
+    if (canon != QFileInfo(currentPath_).canonicalFilePath())
+    {
+        if (!maybeSave())
+            return;
+        loadFile(canon);
+        files_->setCurrentIndex(model_->index(canon));
+    }
+
+    if (!url.fragment().isEmpty())
+        gotoHeading(url.fragment());
 }
 
 void MainWindow::applyFontSize()
@@ -612,14 +684,14 @@ void MainWindow::exportPdf()
 
     // stops the dark theme for a second so the pdf would be white and then turns it back on
     const bool dark = qApp->palette().color(QPalette::Base).lightness() < 128;
-    
+
     if (dark)
     {
         theme::apply(false);
     }
 
     auto result = render::toDocument(*root, opt);
-    
+
     if (dark)
     {
         theme::apply(true);
