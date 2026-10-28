@@ -15,6 +15,7 @@ class QCloseEvent;
 class QUrl;
 class QEvent;
 class Highlighter;
+class QFileSystemWatcher;
 
 class MainWindow : public QMainWindow
 {
@@ -38,6 +39,8 @@ private slots:
     void newFile();
     void exportPdf();
     void gotoHeading(const QString& fragment);
+    void watchCurrent();
+    void onExternalChange();
     bool saveAs();
     QString targetDir() const;
 
@@ -49,6 +52,8 @@ private:
     double anchorY(const render::Anchor& a) const;
     double fontSize_ = 11;
     double defaultFontSize_ = 11;
+    QFileSystemWatcher* watcher_ = nullptr;
+    bool askingReload_ = false;
 
     QTreeView *files_;
     QFileSystemModel *model_;

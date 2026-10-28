@@ -39,6 +39,7 @@
 #include <QHash>
 #include <QRegularExpression>
 #include <QTextCursor>
+#include <QFileSystemWatcher>
 
 namespace
 {
@@ -166,6 +167,10 @@ MainWindow::MainWindow(const QString &rootDir, QWidget *parent)
     connect(editor_->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::syncPreviewToEditor);
     connect(preview_->verticalScrollBar(), &QScrollBar::valueChanged, this, &MainWindow::syncEditorToPreview);
 
+    watcher_ = new QFileSystemWatcher(this);
+    connect(watcher_, &QFileSystemWatcher::fileChanged, this, [this](const QString &)
+            { onExternalChange(); });
+
     auto *split = new Splitter(Qt::Horizontal);
     split->addWidget(files_);
     split->addWidget(editor_);
@@ -247,6 +252,7 @@ void MainWindow::loadFile(const QString &path)
     renderTimer_->stop(); // no 150 ms wait when opening a file
     refreshPreview();
     updateTitle();
+    watchCurrent();
 }
 
 void MainWindow::onFileClicked(const QModelIndex &index)
@@ -284,6 +290,7 @@ bool MainWindow::save()
         return false;
     }
     editor_->document()->setModified(false);
+    watchCurrent();
     return true;
 }
 
@@ -648,6 +655,7 @@ bool MainWindow::saveAs()
 
     updateTitle();
     files_->setCurrentIndex(model_->index(path));
+    watchCurrent();
     return true;
 }
 
@@ -705,4 +713,61 @@ void MainWindow::exportPdf()
     result.doc->print(&writer);
 
     statusBar()->showMessage(tr("Exported %1").arg(path), 4000);
+}
+
+void MainWindow::watchCurrent()
+{
+    if (!watcher_->files().isEmpty())
+    {
+        watcher_->removePaths(watcher_->files());
+    }
+    if (!currentPath_.isEmpty() && QFileInfo::exists(currentPath_))
+    {
+        watcher_->addPath(currentPath_);
+    }
+}
+
+void MainWindow::onExternalChange()
+{
+    QTimer::singleShot(150, this, [this]
+                       {
+        watchCurrent();
+        if (currentPath_.isEmpty() || askingReload_)
+            return;
+
+        QFile f(currentPath_);
+        if (!f.open(QIODevice::ReadOnly))
+            return;
+        QByteArray disk = f.readAll();
+        f.close();
+        disk.replace("\r\n", "\n");
+
+        if (disk == editor_->toPlainText().toUtf8())
+            return;
+
+        if (editor_->document()->isModified())
+        {
+            askingReload_ = true;
+            const auto answer = QMessageBox::question(
+                this, tr("File changed on disk"),
+                tr("\"%1\" was changed by another program, and you have unsaved edits.\n\n"
+                   "Reload it and lose your edits?")
+                    .arg(QFileInfo(currentPath_).fileName()),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            askingReload_ = false;
+            if (answer != QMessageBox::Yes)
+                return;
+        }
+
+        const int pos = editor_->textCursor().position();
+        const int scroll = editor_->verticalScrollBar()->value();
+
+        loadFile(currentPath_);
+
+        QTextCursor c(editor_->document());
+        c.setPosition(qMin(pos, editor_->document()->characterCount() - 1));
+        editor_->setTextCursor(c);
+        editor_->verticalScrollBar()->setValue(scroll);
+
+        statusBar()->showMessage(tr("Reloaded: changed on disk"), 4000); });
 }
