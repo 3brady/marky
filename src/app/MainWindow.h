@@ -22,6 +22,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 public:
     explicit MainWindow(const QString &rootDir, QWidget *parent = nullptr);
+    void openFile(const QString& path);
 
 protected:
     bool eventFilter(QObject* obj, QEvent* e) override;

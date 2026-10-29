@@ -771,3 +771,12 @@ void MainWindow::onExternalChange()
 
         statusBar()->showMessage(tr("Reloaded: changed on disk"), 4000); });
 }
+
+void MainWindow::openFile(const QString &path)
+{
+    const QString canon = QFileInfo(path).canonicalFilePath();
+    if (canon.isEmpty())
+        return;
+    loadFile(canon);
+    files_->setCurrentIndex(model_->index(canon));
+}

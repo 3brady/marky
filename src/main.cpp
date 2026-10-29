@@ -4,8 +4,6 @@
 #include <QSettings>
 #include <cstdio>
 #include "app/MainWindow.h"
-#include "markdown/AST.h"
-#include "markdown/Parser.h"
 #include "style/Theme.h"
 
 int main(int argc, char *argv[])
@@ -15,23 +13,60 @@ int main(int argc, char *argv[])
 
     QCoreApplication::setOrganizationName("marky");
     QCoreApplication::setApplicationName("marky");
+
+    QSettings settings;
+    theme::apply(settings.value("dark", theme::systemPrefersDark()).toBool());
+
+    bool useLast = false;
+    QString target;
+    const QStringList args = app.arguments().mid(1);
+    for (const QString &a : args)
     {
-        QSettings settings;
-        theme::apply(settings.value("dark", theme::systemPrefersDark()).toBool());
+        if (a == "--last")
+            useLast = true;
+        else if (target.isEmpty())
+            target = a;
     }
 
-    const QStringList args = app.arguments();
-    const QString dir = args.size() > 1 ? args.at(1) : QDir::currentPath();
-
-    QFileInfo info(dir);
-    if (!info.isDir())
+    if (target.isEmpty())
     {
-        std::fprintf(stderr, "marky: '%s' is not a directory\n", qPrintable(dir));
+        if (useLast)
+        {
+            target = settings.value("lastProject", QDir::homePath()).toString();
+            if (!QFileInfo(target).isDir())
+                target = QDir::homePath();
+        }
+        else
+        {
+            target = QDir::currentPath();
+        }
+    }
+
+    const QFileInfo info(target);
+    if (!info.exists())
+    {
+        std::fprintf(stderr, "marky: '%s' does not exist\n", qPrintable(target));
         return 1;
     }
 
-    MainWindow w(info.absoluteFilePath());
+    QString projectDir;
+    QString fileToOpen;
+    if (info.isDir())
+    {
+        projectDir = info.absoluteFilePath();
+    }
+    else
+    {
+        projectDir = info.absolutePath();
+        fileToOpen = info.canonicalFilePath();
+    }
+
+    settings.setValue("lastProject", projectDir);
+
+    MainWindow w(projectDir);
     w.resize(1300, 700);
     w.show();
+    if (!fileToOpen.isEmpty())
+        w.openFile(fileToOpen);
     return app.exec();
 }
