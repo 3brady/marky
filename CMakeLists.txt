@@ -11,7 +11,7 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 set(BUILD_MD2HTML_EXECUTABLE OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-add_subdirectory(libs/md4c)
+add_subdirectory(libs/md4c EXCLUDE_FROM_ALL)
 
 add_library(marky_markdown STATIC
     src/markdown/AST.h
@@ -41,3 +41,11 @@ enable_testing()
 add_executable(markdown_tests tests/markdown_tests.cpp)
 target_link_libraries(markdown_tests PRIVATE marky_markdown)
 add_test(NAME markdown COMMAND markdown_tests)
+
+
+include(GNUInstallDirs)
+install(TARGETS marky RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES resources/marky.desktop
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
+install(FILES resources/icons/marky.svg
+    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)

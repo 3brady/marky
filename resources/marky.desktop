@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=marky
+GenericName=Markdown Editor
+Comment=Native Markdown editor with live preview
+Exec=marky
+Icon=marky
+Terminal=false
+Categories=Utility;TextEditor;
+Keywords=markdown;editor;notes;preview;
