@@ -1,30 +1,79 @@
-# marky
+<p align="center">
+  <img src="resources/icons/marky.svg" width="96" alt="marky logo">
+</p>
 
-A native Markdown editor for Linux, written in C++ with Qt 6. No Electron, no embedded browser.
+<h1 align="center">marky</h1>
 
-Open a project folder, pick a file from the list, edit it on the left and watch the rendered result on the right.
+<p align="center">
+  A fast, native Markdown editor for Linux with a live preview.<br>
+  Written in C++ with Qt 6. No Electron, no embedded browser.
+</p>
 
 ![marky screenshot](docs/screenshot.png)
 
+Open a project folder, pick a note from the file list, edit it on the left and watch the rendered result on the right. marky starts instantly, uses very little memory and stays out of your way.
+
 ## Features
 
-- **Three panes:** a file list, a plain-text editor and a live preview.
+- **Three panes:** a file list, an editor and a live preview.
+- **Syntax highlighting** in the editor for headings, lists, quotes, code, links and emphasis, with matching light and dark colors.
 - **Live preview** that updates a moment after you stop typing, so large files stay responsive.
 - **Two-way scroll sync:** scroll either pane and the other follows.
-- **GitHub-flavored Markdown:** headings, lists (nested and loose), task lists, block quotes, fenced code, tables, strikethrough, autolinks, horizontal rules and HTML entities.
-- **Images and links:** local images are shown (and scaled to fit), links open in your default browser.
-- **Dark mode** (View menu), remembered between runs. On first start it follows your system theme when Qt 6.5 or newer is installed.
-- **Zoom** for both panes, remembered between runs.
-- **Safe editing:** unsaved changes are marked in the title bar, you are asked before switching files or quitting, and saving is atomic, so a crash can't corrupt your file.
+- **GitHub-flavored Markdown:** tables, task lists, strikethrough, autolinks, fenced code and more.
+- **Linked notes:** `[text](other.md)` and `[text](other.md#section)` open inside marky, `#section` links jump within a note, and everything else opens in your browser. Links can't leave the project folder.
+- **Images:** local images are shown and scaled to fit.
+- **Export to PDF** from the File menu. Always rendered in light colors, even when you work in dark mode.
+- **Dark mode** and **zoom**, both remembered between runs. On first start marky follows your system theme.
+- **Safe editing:** unsaved changes are marked in the title bar, you are asked before switching files or quitting, and saving is atomic so a crash can't corrupt your file.
+- **Notices outside changes:** if another program edits the open file, marky reloads it (or asks first, if you have unsaved edits).
+
+## Installation
+
+marky is built from source. It takes a minute.
+
+### Requirements
+
+A C++20 compiler, CMake 3.21 or newer, and Qt 6 (Widgets). On Ubuntu:
+
+```bash
+sudo apt install build-essential cmake ninja-build qt6-base-dev git
+```
+
+### Build and install
+
+The Markdown parser ([md4c](https://github.com/mity/md4c)) is included as a git submodule, so clone with `--recurse-submodules`:
+
+```bash
+git clone --recurse-submodules https://github.com/3brady/marky
+cd marky
+cmake -S . -B build -G Ninja
+cmake --build build
+cmake --install build --prefix ~/.local
+```
+
+That installs the `marky` command, a desktop launcher and an icon under `~/.local`, so marky shows up in your app menu and in "Open with" for Markdown files. If the `marky` command isn't found afterwards, open a new terminal.
+
+To try it without installing, run `./build/marky ~/notes` instead of the last step.
+
+If you cloned without `--recurse-submodules`, run `git submodule update --init` first.
+
+### Uninstall
+
+```bash
+xargs rm < build/install_manifest.txt
+```
 
 ## Usage
 
 ```bash
-marky path/to/project     # open a project folder
-marky                     # open the current folder
+marky                  # open the current folder
+marky ~/notes          # open a folder
+marky ~/notes/todo.md  # open a file (its folder becomes the project)
 ```
 
-The file panel lists the Markdown files (`.md`, `.markdown`) in that folder and its subfolders. It stays pinned to the folder you launched with, so there is no way to browse above it from inside the app.
+Launched from the app menu, marky reopens the last project you used.
+
+The file panel lists the Markdown files (`.md`, `.markdown`) in the project folder and its subfolders. It stays pinned to that folder, so there is no way to browse above it from inside the app.
 
 | Shortcut | Action |
 |---|---|
@@ -35,40 +84,7 @@ The file panel lists the Markdown files (`.md`, `.markdown`) in that folder and 
 | `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Zoom in / out / reset |
 | `Ctrl` + mouse wheel | Zoom |
 
-## Building
-
-You need a C++20 compiler, CMake 3.21 or newer and Qt 6 (Widgets). On Ubuntu:
-
-```bash
-sudo apt install build-essential cmake ninja-build qt6-base-dev git
-```
-
-Get the source. The Markdown parser ([md4c](https://github.com/mity/md4c)) is included as a git submodule:
-
-```bash
-git clone --recurse-submodules https://github.com/3brady/marky marky
-cd marky
-```
-
-Build and run:
-
-```bash
-cmake -S . -B build -G Ninja
-cmake --build build
-./build/marky ~/notes
-```
-
-If you cloned without `--recurse-submodules`, run `git submodule update --init` first.
-
-## Tests
-
-The parser has its own test suite. It needs no extra dependencies:
-
-```bash
-ctest --test-dir build --output-on-failure
-```
-
-Each test feeds Markdown to the parser and compares the resulting tree with the expected one. On a failure it prints the input, the expected tree and the actual tree.
+Dark mode and PDF export are in the View and File menus.
 
 ## How it works
 
@@ -77,38 +93,43 @@ Markdown text ──md4c──▶ AST ──renderer──▶ QTextDocument ─�
 ```
 
 - **`src/markdown/`** is plain C++ with no Qt. It wraps md4c and builds an AST of its own, which also records the source line where each block starts. md4c doesn't report positions, so they are derived from the text pointers it passes to its callbacks. Scroll sync uses these lines.
-- **`src/render/`** turns the AST into a `QTextDocument`. It also returns a list of (source line, position in the document) pairs, which is how the two panes are matched up when scrolling.
-- **`src/app/`** is the window, menus, file panel, saving and theming.
+- **`src/render/`** turns the AST into a `QTextDocument`. It also returns a list of (source line, position in the document) pairs, which is how the two panes are matched up when scrolling. The same document is what gets printed to PDF.
+- **`src/app/`** is the window, menus, file panel, saving, theming and the editor's syntax highlighter.
 
 Keeping the AST between the parser and the renderer means either side can be replaced without touching the other.
-
-## Project layout
 
 ```
 libs/md4c/       the Markdown parser (git submodule)
 src/markdown/    parser wrapper and AST (no Qt)
 src/render/      AST -> QTextDocument
-src/app/         main window, theme
-tests/           parser testsb
+src/app/         main window, theme, syntax highlighter
+tests/           parser tests
+resources/       desktop launcher and icon
 docs/            documentation assets
 ```
 
+## Tests
+
+The parser has its own test suite and needs no extra dependencies:
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+Each test feeds Markdown to the parser and compares the resulting tree with the expected one. On a failure it prints the input, the expected tree and the actual tree.
+
 ## Known limitations
 
-- The editor has no syntax highlighting yet.
 - Remote images (`https://...`) are not downloaded; their alt text is shown instead.
 - Inline HTML (`<br>`, `<details>`, ...) is shown as plain text.
-- Relative links to other Markdown files don't open yet. Only `http`, `https` and `mailto` links are opened.
 - Table column alignment and ordered-list start numbers are ignored.
-- Changes made to a file by another program while it is open are not detected.
 - Developed and tested on Ubuntu.
 
-## Roadmap
 
-- Syntax highlighting in the editor
-- Opening relative links in the editor
-- Export to HTML and PDF
-- An install target with a desktop launcher and icon
+## Contributing
+
+The project is licensed under MIT license. \
+Bug reports and pull requests are welcome. Please run the tests before sending a change, and keep `src/markdown/` free of Qt.
 
 ## Acknowledgements
 
