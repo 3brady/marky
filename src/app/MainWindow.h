@@ -55,6 +55,7 @@ private:
     double defaultFontSize_ = 11;
     QFileSystemWatcher* watcher_ = nullptr;
     bool askingReload_ = false;
+    bool saving_ = false;
 
     QTreeView *files_;
     QFileSystemModel *model_;

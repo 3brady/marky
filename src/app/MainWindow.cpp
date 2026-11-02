@@ -284,8 +284,14 @@ bool MainWindow::save()
         return false;
     }
     f.write(editor_->toPlainText().toUtf8());
-    if (!f.commit())
+    if (!watcher_->files().isEmpty())
+        watcher_->removePaths(watcher_->files());
+    saving_ = true;
+    const bool ok = f.commit();
+    saving_ = false;
+    if (!ok)
     {
+        watchCurrent();
         QMessageBox::warning(this, "marky", "Cannot save:\n" + f.errorString());
         return false;
     }
@@ -729,6 +735,8 @@ void MainWindow::watchCurrent()
 
 void MainWindow::onExternalChange()
 {
+    if (saving_)
+        return;
     QTimer::singleShot(150, this, [this]
                        {
         watchCurrent();
