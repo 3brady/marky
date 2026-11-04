@@ -684,6 +684,14 @@ void MainWindow::exportPdf()
         path += ".pdf";
     }
 
+    QFile probe(path);
+    if (!probe.open(QIODevice::WriteOnly))
+    {
+        QMessageBox::warning(this, "marky", tr("Cannot write %1:\n%2").arg(path, probe.errorString()));
+        return;
+    }
+    probe.close();
+
     const QByteArray utf8 = editor_->toPlainText().toUtf8();
     auto root = md::parse(std::string_view(utf8.constData(), (size_t)utf8.size()));
     if (!root)
