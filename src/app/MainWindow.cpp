@@ -261,7 +261,7 @@ void MainWindow::onFileClicked(const QModelIndex &index)
         return;
 
     const QString path = model_->filePath(index);
-    if (path == currentPath_)
+    if (path == currentPath_ || QFileInfo(path).canonicalFilePath() == QFileInfo(currentPath_).canonicalFilePath())
         return;
 
     if (!maybeSave())

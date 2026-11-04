@@ -53,11 +53,11 @@ int main(int argc, char *argv[])
     QString fileToOpen;
     if (info.isDir())
     {
-        projectDir = info.absoluteFilePath();
+        projectDir = info.canonicalFilePath();
     }
     else
     {
-        projectDir = info.absolutePath();
+        projectDir = QFileInfo(info.canonicalFilePath()).absolutePath();
         fileToOpen = info.canonicalFilePath();
     }
 
