@@ -306,7 +306,7 @@ namespace md
             break;
         }
 
-        if ((type == MD_TEXT_NORMAL || type == MD_TEXT_CODE || type == MD_TEXT_HTML) && !s->pending.empty())
+        if ((type == MD_TEXT_NORMAL || type == MD_TEXT_CODE || type == MD_TEXT_HTML || type == MD_TEXT_ENTITY) && !s->pending.empty())
         {
             const int ln = lineOf(*s, str);
             if (ln >= 0)

@@ -146,6 +146,8 @@ int main() {
     expectTree("loose list items have their own lines", "- a\n\n- b\n",
                R"(Document@1(BulletList@1(ListItem@1(Paragraph@1(Text"a")) ListItem@3(Paragraph@3(Text"b")))))",
                true);
+    expectTree("entity paragraph line tracking", "&copy;\n",
+               R"(Document@1(Paragraph@1(Entity"&copy;")))", true);
 
     // ---------- robustness: must never crash or return null ----------
     {
