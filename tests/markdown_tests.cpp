@@ -148,6 +148,10 @@ int main() {
                true);
     expectTree("entity paragraph line tracking", "&copy;\n",
                R"(Document@1(Paragraph@1(Entity"&copy;")))", true);
+    expectTree("rule line tracking", "text\n\n---\n\nmore\n",
+               R"(Document@1(Paragraph@1(Text"text") Rule@3 Paragraph@5(Text"more")))", true);
+    expectTree("rule at end of input line tracking", "text\n\n---\n",
+               R"(Document@1(Paragraph@1(Text"text") Rule@3))", true);
 
     // ---------- robustness: must never crash or return null ----------
     {

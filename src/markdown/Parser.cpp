@@ -163,6 +163,7 @@ namespace md
         size_t size = 0;
         std::vector<size_t> lineStarts;
         std::vector<Node *> pending;
+        size_t lastLine = 0;
     };
 
     static int lineOf(const ASTState &s, const char *p)
@@ -194,6 +195,32 @@ namespace md
             }
         }
 
+        if (type == MD_BLOCK_HR)
+        {
+            for (size_t l = s->lastLine; l < s->lineStarts.size(); ++l)
+            {
+                size_t start = s->lineStarts[l];
+                size_t end = (l + 1 < s->lineStarts.size()) ? s->lineStarts[l + 1] - 1 : s->size;
+                int count = 0;
+                char ruleChar = 0;
+                for (size_t i = start; i < end; ++i)
+                {
+                    char c = s->base[i];
+                    if (c == '-' || c == '*' || c == '_')
+                    {
+                        if (!ruleChar) ruleChar = c;
+                        if (c == ruleChar) count++;
+                    }
+                }
+                if (count >= 3)
+                {
+                    node->line = int(l);
+                    s->lastLine = l;
+                    break;
+                }
+            }
+        }
+
         Node *raw = node.get();
 
         if (s->stack.empty())
@@ -210,7 +237,7 @@ namespace md
         {
             raw->line = 0;
         }
-        else
+        else if (raw->line < 0)
         {
             s->pending.push_back(raw);
         }
@@ -311,6 +338,7 @@ namespace md
             const int ln = lineOf(*s, str);
             if (ln >= 0)
             {
+                s->lastLine = size_t(ln);
                 for (Node *b : s->pending)
                 {
                     b->line = ln;
