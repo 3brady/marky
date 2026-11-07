@@ -528,7 +528,8 @@ void MainWindow::onLinkClicked(const QUrl &url)
     const QString canon = fi.canonicalFilePath();
     const QString root = QDir(rootDir_).canonicalPath();
     const QString ext = fi.suffix().toLower();
-    if (!canon.startsWith(root + '/') || (ext != "md" && ext != "markdown"))
+    const QString prefix = (root == "/") ? "/" : root + '/';
+    if (!canon.startsWith(prefix) || (ext != "md" && ext != "markdown"))
     {
         statusBar()->showMessage(tr("Not a Markdown file in this project"), 4000);
         return;
