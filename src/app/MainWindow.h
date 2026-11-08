@@ -49,6 +49,7 @@ private:
     bool save();      // false = failed
     bool maybeSave(); // false = user cancelled (or save failed)
     void loadFile(const QString &path);
+    void selectFileInTree(const QString &path);
     bool syncLock_ = false;      // true while we move a scrollbar ourselves
     double anchorY(const render::Anchor& a) const;
     double fontSize_ = 11;

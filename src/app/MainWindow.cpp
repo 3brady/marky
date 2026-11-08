@@ -540,7 +540,7 @@ void MainWindow::onLinkClicked(const QUrl &url)
         if (!maybeSave())
             return;
         loadFile(canon);
-        files_->setCurrentIndex(model_->index(canon));
+        selectFileInTree(canon);
     }
 
     if (!url.fragment().isEmpty())
@@ -623,7 +623,7 @@ void MainWindow::newFile()
     f.close();
 
     loadFile(path);
-    files_->setCurrentIndex(model_->index(path));
+    selectFileInTree(path);
 }
 
 bool MainWindow::saveAs()
@@ -661,7 +661,7 @@ bool MainWindow::saveAs()
     }
 
     updateTitle();
-    files_->setCurrentIndex(model_->index(path));
+    selectFileInTree(path);
     watchCurrent();
     return true;
 }
@@ -789,11 +789,28 @@ void MainWindow::onExternalChange()
         statusBar()->showMessage(tr("Reloaded: changed on disk"), 4000); });
 }
 
+void MainWindow::selectFileInTree(const QString &path)
+{
+    const QModelIndex idx = model_->index(path);
+    if (idx.isValid())
+    {
+        files_->setCurrentIndex(idx);
+    }
+    else
+    {
+        QTimer::singleShot(150, this, [this, path]
+                           {
+            const QModelIndex i = model_->index(path);
+            if (i.isValid())
+                files_->setCurrentIndex(i); });
+    }
+}
+
 void MainWindow::openFile(const QString &path)
 {
     const QString canon = QFileInfo(path).canonicalFilePath();
     if (canon.isEmpty())
         return;
     loadFile(canon);
-    files_->setCurrentIndex(model_->index(canon));
+    selectFileInTree(canon);
 }
