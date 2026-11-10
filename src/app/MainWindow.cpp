@@ -449,11 +449,14 @@ void MainWindow::syncEditorToPreview()
 void MainWindow::gotoHeading(const QString &fragment)
 {
     static const QRegularExpression headingRe(R"(^\s{0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$)");
+    static const QRegularExpression setextRe(R"(^\s{0,3}(=+|-+)\s*$)");
     static const QRegularExpression fenceRe(R"(^\s{0,3}(```|~~~))");
 
     const QString wanted = QUrl::fromPercentEncoding(fragment.toUtf8()).toLower();
     QHash<QString, int> seen;
     bool inCode = false;
+    QString prevLine;
+    QTextBlock prevBlock;
 
     for (QTextBlock b = editor_->document()->begin(); b.isValid(); b = b.next())
     {
@@ -461,23 +464,39 @@ void MainWindow::gotoHeading(const QString &fragment)
         if (fenceRe.match(line).hasMatch())
         {
             inCode = !inCode;
+            prevLine.clear();
             continue;
         }
         if (inCode)
             continue;
 
-        const auto m = headingRe.match(line);
-        if (!m.hasMatch())
+        QString title;
+        QTextBlock targetBlock = b;
+
+        if (const auto m = headingRe.match(line); m.hasMatch())
+        {
+            title = m.captured(1);
+        }
+        else if (setextRe.match(line).hasMatch() && !prevLine.trimmed().isEmpty())
+        {
+            title = prevLine.trimmed();
+            targetBlock = prevBlock;
+        }
+
+        prevLine = line;
+        prevBlock = b;
+
+        if (title.isEmpty())
             continue;
 
-        QString slug = slugify(m.captured(1));
+        QString slug = slugify(title);
         const int n = seen[slug]++;
         if (n > 0)
             slug += "-" + QString::number(n);
 
         if (slug == wanted)
         {
-            editor_->setTextCursor(QTextCursor(b));
+            editor_->setTextCursor(QTextCursor(targetBlock));
             editor_->centerCursor();
             return;
         }
