@@ -24,6 +24,7 @@ namespace render
         QString baseDir;
         int maxImageWidth = 700;
         double fontPointSize = 0;
+        bool forceLight = false;
     };
 
     Result toDocument(const md::Node &root, const Options &opt);

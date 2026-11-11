@@ -723,21 +723,9 @@ void MainWindow::exportPdf()
     opt.baseDir = currentPath_.isEmpty() ? rootDir_ : cur.absolutePath();
     opt.maxImageWidth = 640;
     opt.fontPointSize = fontSize_;
-
-    // stops the dark theme for a second so the pdf would be white and then turns it back on
-    const bool dark = qApp->palette().color(QPalette::Base).lightness() < 128;
-
-    if (dark)
-    {
-        theme::apply(false);
-    }
+    opt.forceLight = true;
 
     auto result = render::toDocument(*root, opt);
-
-    if (dark)
-    {
-        theme::apply(true);
-    }
 
     QPdfWriter writer(path);
     writer.setPageSize(QPageSize(QPageSize::A4));

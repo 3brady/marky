@@ -2,6 +2,8 @@
 #include <QColor>
 #include <QFont>
 #include <QGuiApplication>
+#include <QApplication>
+#include <QStyle>
 #include <QPalette>
 #include <QTextBlockFormat>
 #include <QTextCharFormat>
@@ -39,6 +41,7 @@ namespace render
             int line = 0;
             double basePt = 11;
             std::vector<Anchor> anchors;
+            QPalette palette;
         };
 
         QString str(const std::string &s)
@@ -72,11 +75,11 @@ namespace render
             }
         }
 
-        QColor tint(int alpha)
+        QColor tint(const Ctx &c, int alpha)
         {
-            QColor c = QGuiApplication::palette().color(QPalette::Text);
-            c.setAlpha(alpha);
-            return c;
+            QColor col = c.palette.color(QPalette::Text);
+            col.setAlpha(alpha);
+            return col;
         }
 
         QTextBlockFormat baseBlock(const Ctx &c)
@@ -85,7 +88,7 @@ namespace render
             if (c.quoteDepth > 0)
             {
                 bf.setLeftMargin(16 * c.quoteDepth);
-                bf.setBackground(tint(20));
+                bf.setBackground(tint(c, 20));
             }
             return bf;
         }
@@ -94,7 +97,7 @@ namespace render
         {
             QTextCharFormat cf;
             if (c.quoteDepth > 0)
-                cf.setForeground(QGuiApplication::palette().color(QPalette::PlaceholderText));
+                cf.setForeground(c.palette.color(QPalette::PlaceholderText));
             return cf;
         }
 
@@ -178,12 +181,12 @@ namespace render
                 break;
             case NodeType::InlineCode:
                 fmt.setFontFamilies({"monospace"});
-                fmt.setBackground(tint(25));
+                fmt.setBackground(tint(c, 25));
                 break;
             case NodeType::Link:
                 fmt.setAnchor(true);
                 fmt.setAnchorHref(str(n.url));
-                fmt.setForeground(QGuiApplication::palette().color(QPalette::Link));
+                fmt.setForeground(c.palette.color(QPalette::Link));
                 fmt.setFontUnderline(true);
                 if (!n.title.empty())
                     fmt.setToolTip(str(n.title));
@@ -409,7 +412,7 @@ namespace render
                 code.replace(QLatin1Char('\n'), QChar(QChar::LineSeparator));
 
                 QTextBlockFormat bf = baseBlock(c);
-                bf.setBackground(tint(30));
+                bf.setBackground(tint(c, 30));
                 bf.setTopMargin(kGap);
                 bf.setBottomMargin(kGap);
                 QTextCharFormat cf = baseChar(c);
@@ -460,6 +463,7 @@ namespace render
         c.baseDir = opt.baseDir;
         c.maxImageWidth = opt.maxImageWidth;
         c.basePt = base.pointSizeF();
+        c.palette = opt.forceLight ? QApplication::style()->standardPalette() : QGuiApplication::palette();
         block(c, root);
 
         r.anchors = std::move(c.anchors);
