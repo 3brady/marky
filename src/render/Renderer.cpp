@@ -14,6 +14,9 @@
 #include <QImage>
 #include <QTextFormat>
 #include <QUrl>
+#include <QFileInfo>
+#include <QDateTime>
+#include <QHash>
 #include <QTextDocumentFragment>
 #include <algorithm>
 #include <vector>
@@ -125,6 +128,22 @@ namespace render
             return s;
         }
 
+        static QImage loadImage(const QString &path)
+        {
+            static QHash<QString, std::pair<QDateTime, QImage>> cache;
+            const QFileInfo fi(path);
+            if (!fi.isFile())
+                return {};
+            const QDateTime mtime = fi.lastModified();
+            auto it = cache.find(path);
+            if (it != cache.end() && it.value().first == mtime)
+                return it.value().second;
+            QImage img(path);
+            if (!img.isNull())
+                cache[path] = {mtime, img};
+            return img;
+        }
+
         void insertImage(Ctx &c, const Node &n, const QTextCharFormat &fmt)
         {
             const QString src = str(n.url);
@@ -138,7 +157,7 @@ namespace render
             if (!remote)
             {
                 path = QDir(c.baseDir).absoluteFilePath(QUrl::fromPercentEncoding(src.toUtf8()));
-                img.load(path);
+                img = loadImage(path);
             }
             if (img.isNull())
             {
