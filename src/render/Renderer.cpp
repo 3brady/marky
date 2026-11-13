@@ -144,6 +144,31 @@ namespace render
             return img;
         }
 
+        static QString decodeEntity(const QString &raw)
+        {
+            static const QHash<QString, QString> named = {
+                {"&amp;", "&"}, {"&lt;", "<"}, {"&gt;", ">"}, {"&quot;", "\""},
+                {"&apos;", "'"}, {"&copy;", "©"}, {"&reg;", "®"}, {"&trade;", "™"},
+                {"&nbsp;", "\u00A0"}, {"&mdash;", "—"}, {"&ndash;", "–"}
+            };
+            auto it = named.find(raw);
+            if (it != named.end())
+                return it.value();
+            if (raw.startsWith("&#") && raw.endsWith(';'))
+            {
+                bool ok = false;
+                char32_t cp = (raw.size() > 3 && (raw[2] == 'x' || raw[2] == 'X'))
+                                  ? raw.mid(3, raw.size() - 4).toUInt(&ok, 16)
+                                  : raw.mid(2, raw.size() - 3).toUInt(&ok, 10);
+                if (ok && QChar::requiresSurrogates(cp))
+                    return QString(QChar::highSurrogate(cp)) + QChar::lowSurrogate(cp);
+                if (ok)
+                    return QString(QChar(ushort(cp)));
+            }
+            const QString decoded = QTextDocumentFragment::fromHtml(raw).toPlainText();
+            return decoded.isEmpty() ? raw : decoded;
+        }
+
         void insertImage(Ctx &c, const Node &n, const QTextCharFormat &fmt)
         {
             const QString src = str(n.url);
@@ -214,12 +239,8 @@ namespace render
                 insertImage(c, n, fmt);
                 return;
             case NodeType::Entity:
-            {
-                const QString raw = str(n.text);
-                const QString decoded = QTextDocumentFragment::fromHtml(raw).toPlainText();
-                c.cur.insertText(decoded.isEmpty() ? raw : decoded, fmt);
+                c.cur.insertText(decodeEntity(str(n.text)), fmt);
                 return;
-            }
             default:
                 break;
             }
