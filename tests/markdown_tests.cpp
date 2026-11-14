@@ -9,6 +9,8 @@
 //   Name@3                (line mode only) block starts on source line 3
 
 #include "markdown/Parser.h"
+#include "render/Renderer.h"
+#include <QGuiApplication>
 
 #include <cstdio>
 #include <string>
@@ -77,7 +79,8 @@ void expectTrue(const char* name, bool condition, const std::string& detail = ""
 
 } // namespace
 
-int main() {
+int main(int argc, char *argv[]) {
+    QGuiApplication app(argc, argv);
     // ---------- blocks ----------
     expectTree("empty input", "", "Document");
     expectTree("headings", "# A\n## B\n",
@@ -173,6 +176,20 @@ int main() {
         auto root = md::parse(big);
         expectTrue("20000 paragraphs", root && root->children.size() == 20000,
                    root ? std::to_string(root->children.size()) + " children" : "null");
+    }
+
+    // ---------- renderer tests ----------
+    {
+        auto root = md::parse("# Title\n\nParagraph text.\n\n- [ ] Task\n");
+        expectTrue("parser produced ast", root != nullptr);
+        if (root) {
+            render::Options opt;
+            auto res = render::toDocument(*root, opt);
+            expectTrue("renderer produced document", res.doc != nullptr);
+            expectTrue("renderer anchors non-empty", !res.anchors.empty());
+            expectTrue("first anchor is line 0", res.anchors.front().line == 0);
+            expectTrue("rendered text has title", res.doc->toPlainText().contains("Title"));
+        }
     }
 
     std::printf("%d checks, %d failed\n", g_run, g_failed);

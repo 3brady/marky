@@ -38,8 +38,11 @@ add_executable(marky
 target_link_libraries(marky PRIVATE Qt6::Widgets marky_markdown)
 
 enable_testing()
-add_executable(markdown_tests tests/markdown_tests.cpp)
-target_link_libraries(markdown_tests PRIVATE marky_markdown)
+add_executable(markdown_tests
+    tests/markdown_tests.cpp
+    src/render/Renderer.cpp
+)
+target_link_libraries(markdown_tests PRIVATE Qt6::Widgets marky_markdown)
 add_test(NAME markdown COMMAND markdown_tests)
 
 
