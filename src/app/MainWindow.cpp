@@ -71,7 +71,7 @@ namespace
     static QString cleanName(QString name)
     {
         name = name.trimmed();
-        if (name.isEmpty() || name.contains('/') || name.contains('\\') || name.startsWith('.'))
+        if (name.isEmpty() || name.contains('/') || name.contains('\\') || name.startsWith('.') || name.contains(QChar('\0')))
             return {};
         if (!name.endsWith(".md", Qt::CaseInsensitive) && !name.endsWith(".markdown", Qt::CaseInsensitive))
             name += ".md";
