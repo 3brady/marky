@@ -94,7 +94,8 @@ Markdown text ──md4c──▶ AST ──renderer──▶ QTextDocument ─�
 
 - **`src/markdown/`** is plain C++ with no Qt. It wraps md4c and builds an AST of its own, which also records the source line where each block starts. md4c doesn't report positions, so they are derived from the text pointers it passes to its callbacks. Scroll sync uses these lines.
 - **`src/render/`** turns the AST into a `QTextDocument`. It also returns a list of (source line, position in the document) pairs, which is how the two panes are matched up when scrolling. The same document is what gets printed to PDF.
-- **`src/app/`** is the window, menus, file panel, saving, theming and the editor's syntax highlighter.
+- **`src/app/`** is the main window, menus, file panel and atomic saving.
+- **`src/style/`** is the dark/light palette theme and the editor's syntax highlighter.
 
 Keeping the AST between the parser and the renderer means either side can be replaced without touching the other.
 
@@ -102,21 +103,22 @@ Keeping the AST between the parser and the renderer means either side can be rep
 libs/md4c/       the Markdown parser (git submodule)
 src/markdown/    parser wrapper and AST (no Qt)
 src/render/      AST -> QTextDocument
-src/app/         main window, theme, syntax highlighter
-tests/           parser tests
+src/style/       theme, syntax highlighter
+src/app/         main window, menus, file panel
+tests/           parser and renderer tests
 resources/       desktop launcher and icon
 docs/            documentation assets
 ```
 
 ## Tests
 
-The parser has its own test suite and needs no extra dependencies:
+The test suite covers the parser and renderer:
 
 ```bash
 ctest --test-dir build --output-on-failure
 ```
 
-Each test feeds Markdown to the parser and compares the resulting tree with the expected one. On a failure it prints the input, the expected tree and the actual tree.
+Tests feed Markdown to the parser and compare the resulting tree with the expected one, and verify document rendering and scroll anchor generation. On a failure it prints the input, the expected tree and the actual tree.
 
 ## Known limitations
 
