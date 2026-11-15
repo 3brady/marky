@@ -83,6 +83,7 @@ namespace
         // i really hate regex
         static const QRegularExpression link(R"(!?\[([^\]]*)\]\([^)]*\))");
         static const QRegularExpression marks(R"([`*~])");
+        static const QRegularExpression dashes(R"(-+)");
         s.replace(link, "\\1");
         s.remove(marks);
         s = s.trimmed().toLower();
@@ -95,6 +96,11 @@ namespace
             else if (c == ' ')
                 out += '-';
         }
+        out.replace(dashes, "-");
+        while (out.endsWith('-'))
+            out.chop(1);
+        while (out.startsWith('-'))
+            out.remove(0, 1);
         return out;
     }
 
